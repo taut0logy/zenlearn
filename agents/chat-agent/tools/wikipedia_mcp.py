@@ -221,7 +221,7 @@ class WikipediaTool:
                 summaries.append(
                     f"**{page.title}**\n"
                     f"{page.extract}\n"
-                    f"Source: {page.url}"
+                    f"📎 Read more: [{page.title}]({page.url})"
                 )
         
         if not summaries:

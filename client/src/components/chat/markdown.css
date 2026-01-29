@@ -1,0 +1,301 @@
+/* Markdown Renderer Styles */
+
+/* Highlight.js Dark Theme (VS Code Dark+) */
+.hljs {
+    color: #d4d4d4;
+    background: transparent;
+}
+
+.hljs-keyword,
+.hljs-literal,
+.hljs-symbol,
+.hljs-name {
+    color: #569cd6;
+}
+
+.hljs-link {
+    color: #569cd6;
+    text-decoration: underline;
+}
+
+.hljs-built_in,
+.hljs-type {
+    color: #4ec9b0;
+}
+
+.hljs-number,
+.hljs-class {
+    color: #b5cea8;
+}
+
+.hljs-string,
+.hljs-meta .hljs-string {
+    color: #ce9178;
+}
+
+.hljs-regexp,
+.hljs-template-tag {
+    color: #d16969;
+}
+
+.hljs-subst,
+.hljs-function,
+.hljs-title,
+.hljs-params,
+.hljs-formula {
+    color: #dcdcaa;
+}
+
+.hljs-comment,
+.hljs-quote {
+    color: #6a9955;
+    font-style: italic;
+}
+
+.hljs-doctag {
+    color: #608b4e;
+}
+
+.hljs-meta,
+.hljs-meta .hljs-keyword,
+.hljs-tag {
+    color: #9cdcfe;
+}
+
+.hljs-variable,
+.hljs-template-variable {
+    color: #9cdcfe;
+}
+
+.hljs-attr,
+.hljs-attribute {
+    color: #9cdcfe;
+}
+
+.hljs-section {
+    color: #ffd700;
+}
+
+.hljs-emphasis {
+    font-style: italic;
+}
+
+.hljs-strong {
+    font-weight: bold;
+}
+
+.hljs-bullet,
+.hljs-selector-tag,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-selector-attr,
+.hljs-selector-pseudo {
+    color: #d7ba7d;
+}
+
+.hljs-addition {
+    color: #b5cea8;
+    background-color: rgba(181, 206, 168, 0.1);
+}
+
+.hljs-deletion {
+    color: #ce9178;
+    background-color: rgba(206, 145, 120, 0.1);
+}
+
+/* Markdown Content Styles */
+.markdown-content {
+    line-height: 1.625;
+}
+
+.markdown-content h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.markdown-content h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-top: 1.25rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.375rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.markdown-content h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.markdown-content h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-top: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.markdown-content h5,
+.markdown-content h6 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-top: 0.75rem;
+    margin-bottom: 0.25rem;
+}
+
+.markdown-content p {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.markdown-content a {
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: opacity 0.15s;
+}
+
+.markdown-content a:hover {
+    opacity: 0.8;
+}
+
+.markdown-content strong {
+    font-weight: 700;
+}
+
+.markdown-content em {
+    font-style: italic;
+}
+
+.markdown-content del {
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+
+.markdown-content ul {
+    list-style-type: disc;
+    margin-left: 1.5rem;
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.markdown-content ul > li {
+    margin-top: 0.25rem;
+}
+
+.markdown-content ol {
+    list-style-type: decimal;
+    margin-left: 1.5rem;
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.markdown-content ol > li {
+    margin-top: 0.25rem;
+}
+
+.markdown-content li {
+    line-height: 1.625;
+}
+
+.markdown-content li > ul,
+.markdown-content li > ol {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
+/* Task lists */
+.markdown-content input[type="checkbox"] {
+    margin-right: 0.5rem;
+    height: 1rem;
+    width: 1rem;
+    border-radius: 0.25rem;
+}
+
+/* Tables */
+.markdown-content table {
+    width: 100%;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.markdown-content th {
+    padding: 0.5rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    background-color: var(--muted);
+    border: 1px solid var(--border);
+}
+
+.markdown-content td {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+}
+
+.markdown-content tr:hover {
+    background-color: color-mix(in srgb, var(--muted) 50%, transparent);
+}
+
+/* Horizontal rule */
+.markdown-content hr {
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 0;
+    border-top: 1px solid var(--border);
+}
+
+/* Images */
+.markdown-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Citations / Footnotes */
+.markdown-content sup {
+    font-size: 0.75rem;
+    color: var(--primary);
+}
+
+.markdown-content sup a {
+    text-decoration: none;
+}
+
+.markdown-content sup a:hover {
+    text-decoration: underline;
+}
+
+/* Mermaid container overrides */
+.mermaid-container svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .markdown-content h1 {
+        font-size: 1.25rem;
+    }
+    
+    .markdown-content h2 {
+        font-size: 1.125rem;
+    }
+    
+    .markdown-content table {
+        font-size: 0.75rem;
+    }
+    
+    .markdown-content th,
+    .markdown-content td {
+        padding: 0.25rem 0.5rem;
+    }
+}

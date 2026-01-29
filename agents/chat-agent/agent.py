@@ -16,6 +16,7 @@ from langgraph.graph.message import add_messages
 from config.settings import settings
 from utils.logger import logger
 from .tools.wikipedia_mcp import wikipedia_tool
+from .tools.duckduckgo_search import duckduckgo_search_tool
 from .context import ChatContext
 
 
@@ -46,7 +47,7 @@ class ChatAgent:
         )
         
         # Define tools
-        self.tools: list[BaseTool] = [wikipedia_tool]
+        self.tools: list[BaseTool] = [wikipedia_tool, duckduckgo_search_tool]
         
         # Bind tools to LLM
         self.llm_with_tools = self.llm.bind_tools(self.tools)
@@ -89,6 +90,16 @@ class ChatAgent:
         
         try:
             response = await self.llm_with_tools.ainvoke(messages)
+            
+            # Debug: Print Gemini response
+            print(f"\n{'='*50}")
+            print(f"GEMINI LLM RESPONSE:")
+            print(f"{'='*50}")
+            print(f"Content: {response.content[:1000] if response.content else 'No content'}")
+            if hasattr(response, 'tool_calls') and response.tool_calls:
+                print(f"Tool Calls: {response.tool_calls}")
+            print(f"{'='*50}\n")
+            
             return {"messages": [response]}
         except Exception as e:
             logger.error(f"Agent node error: {e}")

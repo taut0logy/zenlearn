@@ -14,7 +14,11 @@ import {
     RefreshCw,
     Sparkles,
     AlertCircle,
+    Copy,
+    Check,
 } from 'lucide-react';
+import { MarkdownRenderer } from './markdown-renderer';
+import { CopyButton } from './copy-button';
 
 // ====================
 // Message Bubble
@@ -31,7 +35,7 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
     return (
         <div
             className={cn(
-                'flex gap-3 p-4 rounded-lg transition-all',
+                'group flex gap-3 p-4 rounded-lg transition-all',
                 isUser
                     ? 'bg-primary/10 ml-8'
                     : 'bg-muted/50 mr-8'
@@ -53,17 +57,29 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
                 )}
             </Avatar>
             
-            <div className="flex-1 space-y-1 overflow-hidden">
-                <p className="text-xs font-medium text-muted-foreground">
-                    {isUser ? 'You' : 'ZenLearn Assistant'}
-                </p>
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                    <p className="whitespace-pre-wrap break-words">
-                        {message.content}
-                        {isStreaming && (
-                            <span className="inline-block w-2 h-4 ml-1 bg-primary animate-pulse rounded-sm" />
-                        )}
+            <div className="flex-1 space-y-1 overflow-hidden min-w-0">
+                <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium text-muted-foreground">
+                        {isUser ? 'You' : 'ZenLearn Assistant'}
                     </p>
+                    {!isUser && !isStreaming && (
+                        <CopyButton 
+                            text={message.content} 
+                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        />
+                    )}
+                </div>
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                    {isUser ? (
+                        <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                    ) : (
+                        <>
+                            <MarkdownRenderer content={message.content} isStreaming={isStreaming} />
+                            {isStreaming && (
+                                <span className="inline-block w-2 h-4 ml-1 bg-primary animate-pulse rounded-sm" />
+                            )}
+                        </>
+                    )}
                 </div>
             </div>
         </div>
