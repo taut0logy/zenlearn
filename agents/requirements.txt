@@ -41,6 +41,12 @@ pymupdf
 tiktoken
 cohere
 
+# Video Generation
+edge-tts           # Text-to-speech
+manim              # Mathematical animations
+Pillow             # Image processing for slides
+ffmpeg-python      # Video composition
+pygments           # Code syntax highlighting
 markdown
 xhtml2pdf
 
