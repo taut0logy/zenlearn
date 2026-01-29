@@ -387,3 +387,6 @@ uvicorn main:app --reload
 python -m pytest tests/ -v
 python -m tests.test_video_gen  # Video pipeline
 ```
+
+
+
