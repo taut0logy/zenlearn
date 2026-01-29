@@ -14,6 +14,9 @@ from config.limiter import limiter
 from config.settings import settings
 from utils.logger import logger, request_id_ctx
 from api.test import router as test_router
+from cms_agent.router import router as cms_router
+from fastapi.staticfiles import StaticFiles
+import os
 
 
 @asynccontextmanager
@@ -89,6 +92,12 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # Include routers with prefix
 app.include_router(test_router, prefix=settings.API_PREFIX)
+app.include_router(cms_router, prefix=settings.API_PREFIX)
+
+# Mount contents directory
+content_dir = os.path.join(settings.BASE_DIR, "contents")
+os.makedirs(content_dir, exist_ok=True)
+app.mount("/contents", StaticFiles(directory=content_dir), name="contents")
 
 
 @app.get("/")
