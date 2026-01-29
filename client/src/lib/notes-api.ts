@@ -7,8 +7,7 @@
 
 import { createClient } from '@/lib/supabase/client';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const API_PREFIX = '/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 // Types for notes API
 export interface ExtractedBlock {
@@ -64,7 +63,7 @@ async function apiRequest<T>(
         throw new Error('Please log in to use this feature');
     }
     
-    const response = await fetch(`${API_BASE_URL}${API_PREFIX}${endpoint}`, {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
         headers: {
             'Content-Type': 'application/json',
@@ -98,7 +97,7 @@ export async function digitizeNote(imageBase64: string, title?: string): Promise
  * Check notes service health
  */
 export async function checkNotesHealth(): Promise<{ status: string; service: string }> {
-    const response = await fetch(`${API_BASE_URL}${API_PREFIX}/notes/health`);
+    const response = await fetch(`${API_BASE_URL}/notes/health`);
     if (!response.ok) {
         throw new Error('Notes service is unavailable');
     }

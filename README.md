@@ -4,9 +4,9 @@
 ## Team ZenBit
 
 ### Members
-- Md. Faysal Mahmud
-- Md. Sakibur Rahman
-- Raufun Ahsan
+- [Md. Faysal Mahmud](https://github.com/faysal-star)
+- [Raufun Ahsan](https://github.com/taut0logy)
+- [Md. Sakibur Rahman](https://github.com/sakiburrahman07)
 
 > **BCF Hackathon 2026:** ZenLearn - Intelligent course content generation and personalized learning
 ---

@@ -59,7 +59,7 @@ const getNavItems = (role?: string) => {
     const adminItems = [
         {
             title: "Admin",
-            href: "/admin",
+            href: "/admin/materials",
             icon: Settings,
             roles: ["admin"],
         },
