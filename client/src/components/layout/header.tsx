@@ -20,6 +20,8 @@ import {
     Settings,
     User,
     Video,
+    FileText,
+    Users,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
@@ -38,6 +40,18 @@ const getNavItems = (role?: string) => {
             title: "Materials",
             href: "/materials",
             icon: MessageSquare,
+            roles: ["user", "admin"],
+        },
+        {
+            title: "Notes",
+            href: "/notes",
+            icon: FileText,
+            roles: ["user", "admin"],
+        },
+        {
+            title: "Community",
+            href: "/community",
+            icon: Users,
             roles: ["user", "admin"],
         },
     ];

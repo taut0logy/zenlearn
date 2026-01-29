@@ -31,6 +31,26 @@ except ImportError as e:
     print(f"Warning: Could not import chat-agent router: {e}")
     chat_router = None
 
+# Import notes router
+try:
+    from api.notes import router as notes_router
+except ImportError as e:
+    logger.error(f"Error importing notes router: {e}", exc_info=True)
+    notes_router = None
+except Exception as e:
+    logger.error(f"Unexpected error importing notes router: {type(e).__name__}: {e}", exc_info=True)
+    notes_router = None
+
+# Import community router
+try:
+    from community_agent.router import router as community_router
+except ImportError as e:
+    logger.warning(f"Could not import community router: {e}")
+    community_router = None
+except Exception as e:
+    logger.error(f"Unexpected error importing community router: {type(e).__name__}: {e}", exc_info=True)
+    community_router = None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -113,6 +133,10 @@ app.include_router(cms_router, prefix=settings.API_PREFIX)
 content_dir = os.path.join(settings.BASE_DIR, "contents")
 os.makedirs(content_dir, exist_ok=True)
 app.mount("/contents", StaticFiles(directory=content_dir), name="contents")
+if notes_router:
+    app.include_router(notes_router, prefix=settings.API_PREFIX)
+if community_router:
+    app.include_router(community_router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")
