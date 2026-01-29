@@ -32,6 +32,12 @@ langchain[google-genai]
 chromadb
 pgvector
 
+# Document Processing
+python-pptx
+pymupdf
+#tree-sitter-languages
+tiktoken
+cohere
 
 # Security (uncomment as needed)
 # python-jose[cryptography]>=3.3.0
