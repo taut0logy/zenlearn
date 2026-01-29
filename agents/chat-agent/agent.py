@@ -213,6 +213,7 @@ class ChatAgent:
                 if event_type == "on_chat_model_stream":
                     chunk = event.get("data", {}).get("chunk", None)
                     if chunk and hasattr(chunk, "content"):
+                        print(f"DEBUG GEMINI CHUNK: {chunk.content}") # Debug: Print raw content
                         content = chunk.content
                         # Handle content as string or list (Gemini 2.5 returns list of parts)
                         if isinstance(content, list):

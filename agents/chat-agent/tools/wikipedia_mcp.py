@@ -37,7 +37,11 @@ class WikipediaTool:
     BASE_URL = "https://en.wikipedia.org/w/api.php"
     
     def __init__(self):
-        self.client = httpx.AsyncClient(timeout=30.0)
+        # Wikipedia requires a descriptive User-Agent header
+        headers = {
+            "User-Agent": "ZenLearnBot/1.0 (https://zenlearn.example.com; contact@zenlearn.example.com)"
+        }
+        self.client = httpx.AsyncClient(timeout=30.0, headers=headers)
     
     async def search(
         self, 
@@ -82,6 +86,7 @@ class WikipediaTool:
                 ))
             
             logger.info(f"Wikipedia search for '{query}' returned {len(results)} results")
+            print(f"DEBUG WIKIPEDIA SEARCH RESULTS: {results}") # Debug: Print search results
             return results
             
         except Exception as e:
@@ -222,7 +227,9 @@ class WikipediaTool:
         if not summaries:
             return f"Found articles but couldn't retrieve summaries for '{query}'"
         
-        return "\n\n---\n\n".join(summaries)
+        result_str = "\n\n---\n\n".join(summaries)
+        print(f"DEBUG WIKIPEDIA RETURN:\n{result_str}") # Debug: Print final return string
+        return result_str
     
     async def close(self):
         """Close the HTTP client."""
