@@ -1,0 +1,42 @@
+# Core Framework
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-dotenv
+python-multipart
+
+# Database
+sqlalchemy[asyncio]
+asyncpg
+psycopg2-binary
+pgvector
+
+# Rate Limiting
+slowapi
+redis
+
+# HTTP Client
+httpx
+requests
+# Logging
+python-json-logger
+
+# AI/ML
+langgraph
+langchain
+langchain-cohere
+langchain[openai]
+langchain[google-genai]
+
+chromadb
+pgvector
+
+
+# Security (uncomment as needed)
+# python-jose[cryptography]>=3.3.0
+# passlib[bcrypt]>=1.7.4
+
+# Testing (dev only)
+# pytest>=7.4.0
+# pytest-asyncio>=0.23.0

@@ -1,0 +1,16 @@
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-*
+
+.venv/
+venv/
+ENV/
+env/
+
+.DS_Store
+Thumbs.db
+
+*.md
+!README.md

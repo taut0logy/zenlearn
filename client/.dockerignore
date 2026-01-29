@@ -1,0 +1,13 @@
+.env.local
+Dockerfile
+.dockerignore
+node_modules
+npm-debug.log
+README.md
+.next
+.git
+.cursorrules
+.idea
+.vscode
+.github
+.DS_Store
