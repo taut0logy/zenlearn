@@ -34,12 +34,6 @@ const getNavItems = (role?: string) => {
             icon: Home,
             roles: ["user", "admin"],
         },
-        {
-            title: "Messages",
-            href: "/messages",
-            icon: MessageSquare,
-            roles: ["user", "admin"],
-        },
     ];
 
     const adminItems = [
@@ -95,7 +89,7 @@ export function Header() {
                     href="/"
                     className="flex items-center space-x-2 font-bold text-xl"
                 >
-                    <span className="hidden sm:inline-block">My App</span>
+                    <span className="hidden sm:inline-block">ZenLearn</span>
                 </Link>
 
                 <nav className="hidden md:flex items-center space-x-6">
