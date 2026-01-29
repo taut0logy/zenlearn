@@ -388,5 +388,14 @@ python -m pytest tests/ -v
 python -m tests.test_video_gen  # Video pipeline
 ```
 
+## Screenshots
 
+![](screenshots/chat_1.png)
+![](screenshots/chat_3.png)
+![](screenshots/community.png)
+![](screenshots/materials_1.png)
+![](screenshots/pdf.png)
+![](screenshots/pic_2.png)
 
+### Generated Video
+![generated video](screenshots/QuickSort_The_Art_of_Divide_and_Conquer.mp4)
