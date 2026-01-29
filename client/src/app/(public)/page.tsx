@@ -65,16 +65,51 @@ export default function Home() {
                     </div>
                     
                     <div className="absolute top-20 left-10 right-10 bottom-10 grid grid-cols-12 gap-6">
-                        <div className="col-span-3 bg-muted/50 rounded-lg hidden md:block"></div>
+                        <div className="col-span-3 bg-muted/50 rounded-lg hidden md:flex flex-col p-4 gap-3">
+                            <div className="h-4 w-20 bg-primary/20 rounded-md mb-2"></div>
+                            {[1, 2, 3, 4].map((i) => (
+                                <div key={i} className="h-8 w-full bg-background/50 rounded-md flex items-center px-3 gap-2">
+                                    <div className="w-4 h-4 rounded-full bg-muted-foreground/20"></div>
+                                    <div className="h-2 w-16 bg-muted-foreground/20 rounded-full"></div>
+                                </div>
+                            ))}
+                        </div>
                         <div className="col-span-12 md:col-span-9 bg-card rounded-lg border border-border shadow-sm p-6 flex flex-col gap-4">
-                            <div className="h-8 w-1/3 bg-muted rounded-md mb-4"></div>
-                            <div className="h-4 w-full bg-muted/50 rounded-md"></div>
-                            <div className="h-4 w-5/6 bg-muted/50 rounded-md"></div>
-                            <div className="h-4 w-4/6 bg-muted/50 rounded-md"></div>
+                            <div className="flex justify-between items-center mb-2">
+                                <div className="h-8 w-1/3 bg-primary/10 rounded-md flex items-center px-4">
+                                    <span className="text-sm font-medium text-primary/70">Course Overview</span>
+                                </div>
+                                <div className="h-8 w-24 bg-muted rounded-md"></div>
+                            </div>
+                            
+                            <div className="space-y-3">
+                                <div className="h-16 w-full bg-muted/30 rounded-md border border-border/50 p-3 flex gap-3 items-center">
+                                    <div className="w-10 h-10 rounded bg-blue-500/10 flex items-center justify-center text-blue-500">
+                                        <BookOpen className="w-5 h-5" />
+                                    </div>
+                                    <div className="flex-1 space-y-2">
+                                        <div className="h-4 w-1/4 bg-muted-foreground/10 rounded"></div>
+                                        <div className="h-3 w-1/2 bg-muted-foreground/10 rounded"></div>
+                                    </div>
+                                </div>
+                                <div className="h-16 w-full bg-muted/30 rounded-md border border-border/50 p-3 flex gap-3 items-center">
+                                    <div className="w-10 h-10 rounded bg-purple-500/10 flex items-center justify-center text-purple-500">
+                                        <Sparkles className="w-5 h-5" />
+                                    </div>
+                                    <div className="flex-1 space-y-2">
+                                        <div className="h-4 w-1/3 bg-muted-foreground/10 rounded"></div>
+                                        <div className="h-3 w-2/3 bg-muted-foreground/10 rounded"></div>
+                                    </div>
+                                </div>
+                            </div>
                             
                             <div className="mt-auto flex gap-3">
-                                <div className="h-10 w-full bg-primary/10 rounded-md"></div>
-                                <div className="h-10 w-12 bg-primary rounded-md"></div>
+                                <div className="h-10 w-full bg-muted/50 rounded-md flex items-center px-4 text-sm text-muted-foreground">
+                                    Ask a question about your courses...
+                                </div>
+                                <div className="h-10 w-12 bg-primary rounded-md flex items-center justify-center text-primary-foreground">
+                                    <ArrowRight className="w-4 h-4" />
+                                </div>
                             </div>
                         </div>
                     </div>
