@@ -31,17 +31,6 @@ except ImportError as e:
     print(f"Warning: Could not import chat-agent router: {e}")
     chat_router = None
 
-# Import chat agent router
-import sys
-sys.path.insert(0, '.')
-try:
-    from importlib import import_module
-    chat_agent_router = import_module('chat-agent.router')
-    chat_router = chat_agent_router.router
-except ImportError as e:
-    print(f"Warning: Could not import chat-agent router: {e}")
-    chat_router = None
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
