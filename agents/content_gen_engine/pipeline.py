@@ -105,6 +105,7 @@ class ContentPipeline:
         output_type: Literal["markdown", "pdf", "pptx"] = "markdown",
         context: Optional[str] = None,
         num_pages: int = None,
+        progress_callback: Optional[Any] = None,
     ) -> GenerationResult:
         """
         Generate theory learning materials.
@@ -114,6 +115,7 @@ class ContentPipeline:
             output_type: Output format
             context: Optional RAG context
             num_pages: Number of pages
+            progress_callback: Async callback for status updates
 
         Returns:
             GenerationResult
@@ -123,6 +125,9 @@ class ContentPipeline:
 
             # 1. Plan
             logger.info(f"Planning content for: {topic}")
+            if progress_callback:
+                await progress_callback(f"Planning content structure for '{topic}'...")
+
             plan = await self.planner.plan(
                 topic=topic,
                 output_type=output_type,
@@ -132,6 +137,11 @@ class ContentPipeline:
 
             # 2. Generate content
             logger.info(f"Generating content: {len(plan.sections)} sections")
+            if progress_callback:
+                await progress_callback(
+                    f"Drafting content for {len(plan.sections)} sections..."
+                )
+
             document = await self.theory_writer.generate(plan, context)
 
             # 3. Generate assets
@@ -145,6 +155,11 @@ class ContentPipeline:
 
                 if all_diagrams:
                     logger.info(f"Rendering {len(all_diagrams)} diagrams")
+                    if progress_callback:
+                        await progress_callback(
+                            f"Generating {len(all_diagrams)} Mermaid diagrams..."
+                        )
+
                     diagram_paths = await self.diagram_gen.render_batch(all_diagrams)
                     assets.update({k: v for k, v in diagram_paths.items() if v})
 
@@ -157,6 +172,11 @@ class ContentPipeline:
 
                 if all_images:
                     logger.info(f"Generating {len(all_images)} images")
+                    if progress_callback:
+                        await progress_callback(
+                            f"Creating {len(all_images)} AI illustrations..."
+                        )
+
                     try:
                         image_paths = await self.image_gen.generate_batch(all_images)
                         assets.update({k: v for k, v in image_paths.items() if v})
@@ -164,10 +184,16 @@ class ContentPipeline:
                         logger.warning(f"Image generation failed: {e}")
 
             # 4. Generate output
+            if progress_callback:
+                await progress_callback("Finalizing document...")
+
             md_path = self.markdown_gen.save(document, image_paths=assets)
             output_path = md_path
 
             if output_type == "pdf":
+                if progress_callback:
+                    await progress_callback("Converting to PDF format...")
+
                 pdf_path = md_path.replace(".md", ".pdf")
                 markdown_content = Path(md_path).read_text(encoding="utf-8")
 
@@ -181,6 +207,9 @@ class ContentPipeline:
                 else:
                     logger.warning("PDF generation failed, falling back to Markdown")
 
+            if progress_callback:
+                await progress_callback("Generation complete!")
+
             return GenerationResult(
                 success=True,
                 output_path=output_path,
@@ -192,6 +221,8 @@ class ContentPipeline:
 
         except Exception as e:
             logger.error(f"Theory generation failed: {e}")
+            if progress_callback:
+                await progress_callback(f"Error: {e}")
             return GenerationResult(success=False, error=str(e))
 
     def _convert_to_pdf(
@@ -302,7 +333,11 @@ class ContentPipeline:
             return False
 
     async def generate_lab(
-        self, topic: str, language: str = "python", context: Optional[str] = None
+        self,
+        topic: str,
+        language: str = "python",
+        context: Optional[str] = None,
+        progress_callback: Optional[Any] = None,
     ) -> GenerationResult:
         """
         Generate lab/code learning materials.
@@ -311,6 +346,7 @@ class ContentPipeline:
             topic: Programming topic
             language: Target language
             context: Optional RAG context
+            progress_callback: Async callback for status updates
 
         Returns:
             GenerationResult with lab and validation
@@ -318,6 +354,9 @@ class ContentPipeline:
         try:
             # 1. Generate lab
             logger.info(f"Generating lab: {topic} ({language})")
+            if progress_callback:
+                await progress_callback(f"Designing coding lab for '{topic}'...")
+
             lab = await self.code_writer.generate_lab(
                 topic=topic, language=language, context=context
             )
@@ -327,6 +366,8 @@ class ContentPipeline:
             # 2. Validate solution code
             if self.config.validate_code and lab.solution_code:
                 logger.info("Validating solution code")
+                if progress_callback:
+                    await progress_callback("Validating solution code...")
 
                 # Syntax check
                 syntax_result = self.syntax_checker.check(
@@ -340,6 +381,11 @@ class ContentPipeline:
                 # Run tests if syntax valid
                 if syntax_result.is_valid and lab.test_cases:
                     logger.info(f"Running {len(lab.test_cases)} test cases")
+                    if progress_callback:
+                        await progress_callback(
+                            f"Running {len(lab.test_cases)} test cases..."
+                        )
+
                     test_result = self.code_executor.run_tests(
                         lab.solution_code.code, lab.test_cases, language
                     )
@@ -350,7 +396,13 @@ class ContentPipeline:
                     }
 
             # 3. Generate markdown output
+            if progress_callback:
+                await progress_callback("Saving lab files...")
+
             output_path = self._generate_lab_markdown(lab)
+
+            if progress_callback:
+                await progress_callback("Lab generation complete!")
 
             return GenerationResult(
                 success=True,
@@ -362,72 +414,11 @@ class ContentPipeline:
 
         except Exception as e:
             logger.error(f"Lab generation failed: {e}")
+            if progress_callback:
+                await progress_callback(f"Error: {e}")
             return GenerationResult(success=False, error=str(e))
 
-    def _generate_lab_markdown(self, lab: LabSpec) -> str:
-        """Generate markdown for lab."""
-        lines = [
-            f"# {lab.title}",
-            "",
-            f"**Difficulty:** {lab.difficulty}",
-            "",
-            "## Description",
-            lab.description,
-            "",
-        ]
-
-        if lab.objectives:
-            lines.append("## Learning Objectives")
-            for obj in lab.objectives:
-                lines.append(f"- {obj}")
-            lines.append("")
-
-        if lab.starter_code:
-            lines.append("## Starter Code")
-            lines.append(f"```{lab.starter_code.language}")
-            lines.append(lab.starter_code.code)
-            lines.append("```")
-            lines.append("")
-
-        if lab.test_cases:
-            visible = [tc for tc in lab.test_cases if not tc.is_hidden]
-            if visible:
-                lines.append("## Test Cases")
-                for i, tc in enumerate(visible, 1):
-                    lines.append(f"### Test {i}")
-                    lines.append(f"**Input:**\n```\n{tc.input}\n```")
-                    lines.append(
-                        f"**Expected Output:**\n```\n{tc.expected_output}\n```"
-                    )
-                    if tc.description:
-                        lines.append(f"*{tc.description}*")
-                    lines.append("")
-
-        if lab.hints:
-            lines.append("## Hints")
-            for hint in lab.hints:
-                lines.append(f"- 💡 {hint}")
-            lines.append("")
-
-        # Solution (collapsed)
-        if lab.solution_code:
-            lines.append("<details>")
-            lines.append("<summary>📖 View Solution</summary>")
-            lines.append("")
-            lines.append(f"```{lab.solution_code.language}")
-            lines.append(lab.solution_code.code)
-            lines.append("```")
-            lines.append("</details>")
-
-        content = "\n".join(lines)
-
-        # Save
-        slug = lab.title.lower().replace(" ", "-")[:30]
-        output_path = Path(self.config.output_dir) / f"lab-{slug}.md"
-        output_path.write_text(content, encoding="utf-8")
-
-        logger.info(f"Saved lab: {output_path}")
-        return str(output_path)
+    # ... _generate_lab_markdown ...
 
     async def generate(
         self, topic: str, content_type: Literal["theory", "lab"] = "theory", **kwargs

@@ -27,6 +27,7 @@ export default function ChatPage() {
         isLoading,
         isStreaming,
         streamingContent,
+        thinkingLogs,
         error,
         sendMessage,
         loadChat,
@@ -104,6 +105,7 @@ export default function ChatPage() {
                     messages={messages}
                     isStreaming={isStreaming}
                     streamingContent={streamingContent}
+                    thinkingLogs={thinkingLogs}
                     onViewContent={handleViewContent}
                 />
 

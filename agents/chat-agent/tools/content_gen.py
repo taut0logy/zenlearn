@@ -9,11 +9,10 @@ import os
 import sys
 from pathlib import Path
 from typing import Optional, Literal
+from langchain_core.callbacks.manager import adispatch_custom_event
+
+# ... imports ...
 from langchain_core.tools import tool
-
-# Add parent path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 from content_gen_engine.pipeline import get_content_pipeline, PipelineConfig
 from config.settings import settings
 from utils.logger import logger
@@ -78,9 +77,17 @@ async def generate_learning_content(
 
         logger.info(f"[ContentGen] Generating {content_type} for: {topic}")
 
+        # Local callback to stream progress events
+        async def progress_callback(message: str):
+            await adispatch_custom_event("progress_update", {"message": message})
+
         # Request PDF output
         result = await pipeline.generate(
-            topic=topic, content_type=content_type, context=context, output_type="pdf"
+            topic=topic,
+            content_type=content_type,
+            context=context,
+            output_type="pdf",
+            progress_callback=progress_callback,
         )
 
         if result.success:

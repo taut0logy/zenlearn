@@ -254,6 +254,15 @@ class ChatAgent:
                 elif event_type == "on_tool_end":
                     yield {"event": "tool_result", "data": "Tool completed"}
 
+                elif event_type == "on_custom_event":
+                    # Handle custom events (like thinking process updates)
+                    event_name = event.get("name", "")
+                    if event_name == "progress_update":
+                        data = event.get("data", {})
+                        message = data.get("message", "")
+                        if message:
+                            yield {"event": "thinking", "data": message}
+
             yield {"event": "end", "data": ""}
 
         except Exception as e:
