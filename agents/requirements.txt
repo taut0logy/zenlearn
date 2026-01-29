@@ -30,6 +30,7 @@ langchain[openai]
 langchain[google-genai]
 
 chromadb
+cohere
 pgvector
 
 
