@@ -40,7 +40,7 @@ export interface ChatListResponse {
 }
 
 export interface StreamEvent {
-    event: 'start' | 'token' | 'tool_call' | 'tool_result' | 'end' | 'error';
+    event: 'start' | 'token' | 'tool_call' | 'tool_result' | 'end' | 'error' | 'thinking';
     data: { content: string };
 }
 

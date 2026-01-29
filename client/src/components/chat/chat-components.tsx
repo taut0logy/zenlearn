@@ -95,13 +95,19 @@ export function ChatMessage({ message, isStreaming, onViewContent }: ChatMessage
 // Streaming Message
 // ====================
 
+// ====================
+// Streaming Message
+// ====================
+
 interface StreamingMessageProps {
     content: string;
+    thinkingLogs?: string[];
     onViewContent?: (url: string) => void;
 }
 
-export function StreamingMessage({ content, onViewContent }: StreamingMessageProps) {
-    if (!content) {
+export function StreamingMessage({ content, thinkingLogs = [], onViewContent }: StreamingMessageProps) {
+    // Show thinking indicator if no content yet
+    if (!content && thinkingLogs.length === 0) {
         return (
             <div className="flex gap-3 p-4 rounded-lg bg-muted/50 mr-8">
                 <Avatar className="h-8 w-8 shrink-0">
@@ -117,18 +123,51 @@ export function StreamingMessage({ content, onViewContent }: StreamingMessagePro
         );
     }
 
+    // Render thinking logs and content
     return (
-        <ChatMessage
-            message={{
-                id: 'streaming',
-                chat_id: '',
-                role: 'assistant',
-                content,
-                created_at: new Date().toISOString(),
-            }}
-            isStreaming={true}
-            onViewContent={onViewContent}
-        />
+        <div className="flex gap-3 p-4 rounded-lg bg-muted/50 mr-8 animate-in fade-in duration-300">
+            <Avatar className="h-8 w-8 shrink-0">
+                <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
+                    <Bot className="h-4 w-4" />
+                </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">
+                    ZenLearn Assistant
+                </p>
+
+                {/* Thinking Process */}
+                {thinkingLogs.length > 0 && (
+                    <div className="text-xs bg-background/50 rounded-md border border-border/50 overflow-hidden">
+                        <details className="group" open>
+                            <summary className="flex items-center gap-2 p-2 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors select-none">
+                                <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                                <span className="font-medium text-muted-foreground">Thinking Process</span>
+                            </summary>
+                            <div className="p-2 space-y-1 max-h-[200px] overflow-y-auto font-mono text-[10px] text-muted-foreground/80">
+                                {thinkingLogs.map((log, i) => (
+                                    <div key={i} className="border-l-2 border-primary/20 pl-2">
+                                        {log}
+                                    </div>
+                                ))}
+                            </div>
+                        </details>
+                    </div>
+                )}
+
+                {/* Content */}
+                {content && (
+                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                        <MarkdownRenderer
+                            content={content}
+                            isStreaming={true}
+                            onViewContent={onViewContent}
+                        />
+                        <span className="inline-block w-2 h-4 ml-1 bg-primary animate-pulse rounded-sm" />
+                    </div>
+                )}
+            </div>
+        </div>
     );
 }
 
@@ -140,6 +179,7 @@ interface ChatMessageListProps {
     messages: Message[];
     isStreaming: boolean;
     streamingContent: string;
+    thinkingLogs?: string[];
     onViewContent?: (url: string) => void;
 }
 
@@ -147,6 +187,7 @@ export function ChatMessageList({
     messages,
     isStreaming,
     streamingContent,
+    thinkingLogs,
     onViewContent,
 }: ChatMessageListProps) {
     const bottomRef = useRef<HTMLDivElement>(null);

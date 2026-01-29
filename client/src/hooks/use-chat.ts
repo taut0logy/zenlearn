@@ -25,6 +25,7 @@ interface UseChatReturn {
     isLoading: boolean;
     isStreaming: boolean;
     streamingContent: string;
+    thinkingLogs: string[];
     error: Error | null;
     
     // Actions
@@ -43,6 +44,7 @@ export function useChat({ chatId, onError }: UseChatOptions = {}): UseChatReturn
     const [isLoading, setIsLoading] = useState(false);
     const [isStreaming, setIsStreaming] = useState(false);
     const [streamingContent, setStreamingContent] = useState('');
+    const [thinkingLogs, setThinkingLogs] = useState<string[]>([]);
     const [error, setError] = useState<Error | null>(null);
     
     const abortControllerRef = useRef<AbortController | null>(null);
@@ -57,6 +59,7 @@ export function useChat({ chatId, onError }: UseChatOptions = {}): UseChatReturn
     const loadChat = useCallback(async (id: string) => {
         setIsLoading(true);
         setError(null);
+        setThinkingLogs([]);
         
         try {
             const chatData = await getChat(id);
@@ -74,6 +77,7 @@ export function useChat({ chatId, onError }: UseChatOptions = {}): UseChatReturn
     const createNewChat = useCallback(async (title?: string): Promise<Chat> => {
         setIsLoading(true);
         setError(null);
+        setThinkingLogs([]);
         
         try {
             const newChat = await createChat(title);
@@ -107,6 +111,7 @@ export function useChat({ chatId, onError }: UseChatOptions = {}): UseChatReturn
         setMessages((prev) => [...prev, userMessage]);
         setIsStreaming(true);
         setStreamingContent('');
+        setThinkingLogs([]);
         
         // Create placeholder for assistant message
         const assistantMessageId = crypto.randomUUID();
@@ -120,6 +125,8 @@ export function useChat({ chatId, onError }: UseChatOptions = {}): UseChatReturn
                 } else if (event.event === 'tool_call') {
                     // Show tool usage indicator
                     setStreamingContent((prev) => prev + `\n_${event.data.content}_\n`);
+                } else if (event.event === 'thinking') {
+                    setThinkingLogs((prev) => [...prev, event.data.content]);
                 } else if (event.event === 'error') {
                     throw new Error(event.data.content || 'Streaming error');
                 }
@@ -159,6 +166,7 @@ export function useChat({ chatId, onError }: UseChatOptions = {}): UseChatReturn
         isLoading,
         isStreaming,
         streamingContent,
+        thinkingLogs,
         error,
         sendMessage,
         loadChat,
