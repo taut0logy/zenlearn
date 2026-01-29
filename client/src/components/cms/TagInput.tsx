@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { Command as CommandPrimitive } from "cmdk";
+import { useDebounce } from "@/hooks/use-debounce";
 
 interface TagInputProps {
     value: string[];
@@ -19,13 +20,19 @@ export function TagInput({ value, onChange, placeholder = "Add tag...", suggesti
     const [inputValue, setInputValue] = React.useState("");
     const [open, setOpen] = React.useState(false);
 
+    // Debounce the input value
+    const debouncedInputValue = useDebounce(inputValue, 300);
+
+    // Track previous debounced value to prevent unnecessary calls
+    const prevDebouncedValue = React.useRef<string>("");
+
     React.useEffect(() => {
-        if (!onSearch) return;
-        const timer = setTimeout(() => {
-            onSearch(inputValue);
-        }, 300);
-        return () => clearTimeout(timer);
-    }, [inputValue, onSearch]);
+        // Only call onSearch when debounced value actually changes and is different from previous
+        if (onSearch && debouncedInputValue !== prevDebouncedValue.current) {
+            prevDebouncedValue.current = debouncedInputValue;
+            onSearch(debouncedInputValue);
+        }
+    }, [debouncedInputValue, onSearch]);
 
     // If onSearch is provided, we assume suggestions are externally filtered/loaded
     // Otherwise we filter locally.

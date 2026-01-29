@@ -1,0 +1,123 @@
+"use client";
+
+import * as React from "react";
+import { Search, FileText, Code, Presentation, Loader2 } from "lucide-react";
+import {
+    CommandDialog,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command";
+import { useDebounce } from "@/hooks/use-debounce";
+import { searchMaterials, SearchResult } from "@/lib/api/cms";
+
+interface SearchCommandProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onSelectResult?: (result: SearchResult) => void;
+}
+
+const fileTypeIcons: Record<string, React.ReactNode> = {
+    pdf: <FileText className="h-4 w-4 text-red-500" />,
+    pptx: <Presentation className="h-4 w-4 text-orange-500" />,
+    code: <Code className="h-4 w-4 text-green-500" />,
+    slides: <Presentation className="h-4 w-4 text-orange-500" />,
+};
+
+export function SearchCommand({ open, onOpenChange, onSelectResult }: SearchCommandProps) {
+    const [query, setQuery] = React.useState("");
+    const [results, setResults] = React.useState<SearchResult[]>([]);
+    const [isLoading, setIsLoading] = React.useState(false);
+
+    const debouncedQuery = useDebounce(query, 300);
+
+    React.useEffect(() => {
+        if (!debouncedQuery || debouncedQuery.length < 2) {
+            setResults([]);
+            return;
+        }
+
+        const fetchResults = async () => {
+            setIsLoading(true);
+            try {
+                const response = await searchMaterials(debouncedQuery, { limit: 10 });
+                setResults(response.results);
+            } catch (error) {
+                console.error("Search failed:", error);
+                setResults([]);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchResults();
+    }, [debouncedQuery]);
+
+    const handleSelect = (result: SearchResult) => {
+        if (onSelectResult) {
+            onSelectResult(result);
+        } else {
+            // Default: open file in new tab
+            const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+            window.open(`${backendUrl}${result.filepath}`, "_blank");
+        }
+        onOpenChange(false);
+        setQuery("");
+    };
+
+    return (
+        <CommandDialog open={open} onOpenChange={onOpenChange}>
+            <CommandInput
+                placeholder="Search materials..."
+                value={query}
+                onValueChange={setQuery}
+            />
+            <CommandList>
+                {isLoading && (
+                    <div className="flex items-center justify-center py-6">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                )}
+
+                {!isLoading && debouncedQuery.length >= 2 && results.length === 0 && (
+                    <CommandEmpty>No results found.</CommandEmpty>
+                )}
+
+                {!isLoading && results.length > 0 && (
+                    <CommandGroup heading={`${results.length} results`}>
+                        {results.map((result, index) => (
+                            <CommandItem
+                                key={`${result.filepath}-${index}`}
+                                value={result.filename}
+                                onSelect={() => handleSelect(result)}
+                                className="flex flex-col items-start gap-1 py-3"
+                            >
+                                <div className="flex items-center gap-2 w-full">
+                                    {fileTypeIcons[result.file_type] || <FileText className="h-4 w-4" />}
+                                    <span className="font-medium">{result.filename}</span>
+                                    <span className="ml-auto text-xs text-muted-foreground">
+                                        {Math.round(result.relevance_score * 100)}% match
+                                    </span>
+                                </div>
+                                {result.matching_sections?.[0] && (
+                                    <div className="text-xs text-muted-foreground pl-6 line-clamp-2">
+                                        <span className="font-medium">{result.matching_sections[0].location}:</span>{" "}
+                                        {result.matching_sections[0].content_preview.substring(0, 100)}...
+                                    </div>
+                                )}
+                            </CommandItem>
+                        ))}
+                    </CommandGroup>
+                )}
+
+                {!isLoading && !debouncedQuery && (
+                    <div className="py-6 text-center text-sm text-muted-foreground">
+                        Type to search course materials...
+                    </div>
+                )}
+            </CommandList>
+        </CommandDialog>
+    );
+}

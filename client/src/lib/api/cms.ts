@@ -72,7 +72,6 @@ export async function uploadMaterial(courseId: string, formData: FormData): Prom
         throw new Error(error.detail || "Failed to upload material");
     }
     return res.json();
-    return res.json();
 }
 
 export async function updateMaterial(courseId: string, materialId: string, data: any): Promise<Material> {
@@ -111,5 +110,48 @@ export async function deleteCourseMaterials(courseId: string, type: string): Pro
 export async function searchTags(query: string): Promise<Tag[]> {
     const res = await fetch(`${API_URL}/cms/tags?query=${encodeURIComponent(query)}`);
     if (!res.ok) throw new Error("Failed to fetch tags");
+    return res.json();
+}
+
+// --- Semantic Search ---
+
+export interface SearchSection {
+    content_preview: string;
+    location: string;
+    location_type: string;
+    score: number;
+}
+
+export interface SearchResult {
+    filename: string;
+    filepath: string;
+    file_type: string;
+    relevance_score: number;
+    matching_sections: SearchSection[];
+    summary?: string;
+}
+
+export interface SearchResponse {
+    query: string;
+    count: number;
+    results: SearchResult[];
+}
+
+export interface SearchOptions {
+    type?: "pdf" | "pptx" | "code";
+    limit?: number;
+}
+
+export async function searchMaterials(query: string, options?: SearchOptions): Promise<SearchResponse> {
+    const url = new URL(`${API_URL}/cms/search`);
+    url.searchParams.set("q", query);
+    if (options?.type) url.searchParams.set("type", options.type);
+    if (options?.limit) url.searchParams.set("limit", String(options.limit));
+    
+    const res = await fetch(url.toString());
+    if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.detail || "Search failed");
+    }
     return res.json();
 }

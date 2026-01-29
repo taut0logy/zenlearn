@@ -10,7 +10,7 @@ _client: ClientAPI | None = None
 _collection: Collection | None = None
 
 
-def get_chroma_client(use_cloud: bool = None) -> ClientAPI:
+def get_chroma_client(use_cloud: bool = False) -> ClientAPI:
     """
     Get ChromaDB client.
     
@@ -45,7 +45,7 @@ def get_chroma_client(use_cloud: bool = None) -> ClientAPI:
     
     if not use_cloud:
         # Use local persistent storage
-        persist_dir = os.path.join(os.path.dirname(__file__), "..", "data", "chromadb")
+        persist_dir = os.path.join(settings.BASE_DIR, "data", "chromadb")
         os.makedirs(persist_dir, exist_ok=True)
         _client = chromadb.PersistentClient(path=persist_dir)
         logger.info(f"Using local ChromaDB at {persist_dir}")

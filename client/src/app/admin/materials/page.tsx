@@ -16,19 +16,28 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 
 import { CMSLayout } from "@/components/cms/CMSLayout";
 import { DriveExplorer, FileItem } from "@/components/cms/DriveExplorer";
 import { TagInput } from "@/components/cms/TagInput";
 import { ConfirmDialog } from "@/components/cms/ConfirmDialog";
 import { getCourses, createCourse, getMaterials, uploadMaterial, deleteMaterial, updateMaterial, getRecentMaterials, deleteCourseMaterials, searchTags } from "@/lib/api/cms";
+
+// File type detection and validation
+const FORBIDDEN_EXTENSIONS = ["zip", "rar", "7z", "tar", "gz", "exe", "dll", "bat", "sh", "msi"];
+
+const getFileTypeFromExtension = (filename: string): "pdf" | "pptx" | "code" | null => {
+    const ext = filename.split(".").pop()?.toLowerCase() || "";
+    if (ext === "pdf") return "pdf";
+    if (["pptx", "ppt"].includes(ext)) return "pptx";
+    if (["py", "js", "ts", "tsx", "jsx", "cpp", "c", "java", "go", "rs", "md", "txt", "json", "html", "css", "sql"].includes(ext)) return "code";
+    return null;
+};
+
+const isForbiddenExtension = (filename: string): boolean => {
+    const ext = filename.split(".").pop()?.toLowerCase() || "";
+    return FORBIDDEN_EXTENSIONS.includes(ext);
+};
 
 export default function AdminCMSPage() {
     // Navigation State
@@ -59,16 +68,18 @@ export default function AdminCMSPage() {
         title: string;
         description: string;
         file_type: "pdf" | "pptx" | "code";
-        week: string; // use string for input, parse later
+        week: string;
         tags: string[];
         file: File | null;
+        fileError: string | null;
     }>({
         title: "",
         description: "",
         file_type: "pdf",
         week: "",
         tags: [],
-        file: null
+        file: null,
+        fileError: null
     });
 
     const currentLevel = view === "all" ? path.length - 1 : -1;
@@ -206,6 +217,10 @@ export default function AdminCMSPage() {
                 toast.error("File and title are required");
                 return;
             }
+            if (uploadData.fileError) {
+                toast.error(uploadData.fileError);
+                return;
+            }
 
             const formData = new FormData();
             formData.append("title", uploadData.title);
@@ -220,20 +235,32 @@ export default function AdminCMSPage() {
             await uploadMaterial(currentCourseId, formData);
             toast.success("Material uploaded");
             setIsUploadOpen(false);
-            setUploadData({ title: "", description: "", file_type: "pdf", week: "", tags: [], file: null });
+            setUploadData({ title: "", description: "", file_type: "pdf", week: "", tags: [], file: null, fileError: null });
             loadData();
         } catch (error: any) {
             toast.error(error.message);
         }
     };
 
-    const getAcceptedFileTypes = (type: string) => {
-        switch (type) {
-            case "pdf": return ".pdf";
-            case "pptx": return ".pptx,.ppt";
-            case "code": return ".py,.js,.ts,.cpp,.java,.txt,.zip";
-            default: return "*";
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0] || null;
+        if (!file) {
+            setUploadData({ ...uploadData, file: null, fileError: null, file_type: "pdf" });
+            return;
         }
+
+        if (isForbiddenExtension(file.name)) {
+            setUploadData({ ...uploadData, file: null, fileError: `File type not allowed: .${file.name.split(".").pop()}` });
+            return;
+        }
+
+        const detectedType = getFileTypeFromExtension(file.name);
+        if (!detectedType) {
+            setUploadData({ ...uploadData, file: null, fileError: `Unsupported file type: .${file.name.split(".").pop()}` });
+            return;
+        }
+
+        setUploadData({ ...uploadData, file, file_type: detectedType, fileError: null });
     };
 
     // --- Delete Logic ---
@@ -369,17 +396,18 @@ export default function AdminCMSPage() {
                                         <Input id="title" value={uploadData.title} onChange={e => setUploadData({ ...uploadData, title: e.target.value })} placeholder="Lecture 1 Slides" />
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label htmlFor="file_type">File Type</Label>
-                                        <Select value={uploadData.file_type} onValueChange={(v: any) => setUploadData({ ...uploadData, file_type: v, file: null })}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select type" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="pdf">PDF</SelectItem>
-                                                <SelectItem value="pptx">PowerPoint</SelectItem>
-                                                <SelectItem value="code">Code</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                        <Label htmlFor="file">File</Label>
+                                        <Input
+                                            id="file"
+                                            type="file"
+                                            onChange={handleFileChange}
+                                        />
+                                        {uploadData.fileError && (
+                                            <p className="text-sm text-destructive">{uploadData.fileError}</p>
+                                        )}
+                                        {uploadData.file && !uploadData.fileError && (
+                                            <p className="text-sm text-muted-foreground">Detected type: {uploadData.file_type.toUpperCase()}</p>
+                                        )}
                                     </div>
                                     <div className="grid gap-2">
                                         <Label htmlFor="week">Week Number (Optional)</Label>
@@ -398,15 +426,6 @@ export default function AdminCMSPage() {
                                             onChange={tags => setUploadData({ ...uploadData, tags })}
                                             suggestions={tagSuggestions}
                                             onSearch={handleTagSearch}
-                                        />
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="file">File</Label>
-                                        <Input
-                                            id="file"
-                                            type="file"
-                                            accept={getAcceptedFileTypes(uploadData.file_type)}
-                                            onChange={e => setUploadData({ ...uploadData, file: e.target.files?.[0] || null })}
                                         />
                                     </div>
                                     <div className="grid gap-2">
