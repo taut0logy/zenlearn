@@ -42,6 +42,104 @@ graph TB
 
 ---
 
+## Project Requirements → Module Mapping
+
+This section maps each project requirement to the module(s) that implement it.
+
+```mermaid
+flowchart LR
+    subgraph Parts["Project Requirements"]
+        P1[Part 1: CMS]
+        P2[Part 2: Search]
+        P3[Part 3: Content Gen]
+        P4[Part 4: Validation]
+        P5[Part 5: Chat]
+        B1[Bonus: Notes]
+        B2[Bonus: Video]
+        B3[Bonus: Community]
+    end
+    
+    subgraph Modules["Backend Modules"]
+        M1[cms_agent/]
+        M2[rag_engine/]
+        M3[content_gen_engine/]
+        M4[validators/]
+        M5[chat-agent/]
+        M6[notes_agent/]
+        M7[video_gen/]
+        M8[community_agent/]
+    end
+    
+    P1 --> M1
+    P2 --> M2
+    P3 --> M3
+    P4 --> M4
+    P5 --> M5
+    B1 --> M6
+    B2 --> M7
+    B3 --> M8
+```
+
+| Requirement | Module | Key Components | Status |
+|-------------|--------|----------------|--------|
+| **Part 1: CMS** | `cms_agent/` | `service.py`, `rag_integration.py`, `models.py` | ✅ |
+| **Part 2: Intelligent Search** | `rag_engine/` | `retriever/`, `chunker/`, `code_processor/` | ✅ |
+| **Part 3: AI Content Generation** | `content_gen_engine/` | `agents/`, `generators/`, `pipeline.py` | ✅ |
+| **Part 4: Validation** | `content_gen_engine/validators/` | `SyntaxChecker`, `CodeExecutor`, `ContentValidator` | ✅ |
+| **Part 5: Chat Interface** | `chat-agent/` | `agent.py`, `context.py`, `memory.py`, `tools/` | ✅ |
+| **Bonus: Handwritten Notes** | `notes_agent/` | `vision.py`, `latex_generator.py`, `agent.py` | ✅ |
+| **Bonus: Video Generation** | `content_gen_engine/video_gen/` | `pipeline.py`, Manim, TTS, FFmpeg | ✅ |
+| **Bonus: Community & Bot** | `community_agent/` | `service.py`, `bot.py`, `schemas.py` | ✅ |
+
+---
+
+## Agent Modules
+
+### CMS Agent (`cms_agent/`)
+
+Handles content management system operations for course materials.
+
+| File | Purpose |
+|------|---------|
+| `service.py` | CRUD operations for courses, materials, metadata management |
+| `rag_integration.py` | Auto-index uploaded content into RAG pipeline |
+| `models.py` | SQLAlchemy/Pydantic models for courses, materials |
+| `router.py` | FastAPI endpoints for CMS operations |
+
+### Chat Agent (`chat-agent/`)
+
+Conversational AI interface with multi-turn memory and tool orchestration.
+
+| Component | Purpose |
+|-----------|---------|
+| `agent.py` | Main chat agent with Gemini integration |
+| `context.py` | Context window management, retrieval integration |
+| `memory.py` | Conversation history, session persistence |
+| `service.py` | Orchestrates RAG search, content gen calls |
+| `tools/` | Function calling tools (search, generate, explain) |
+
+### Community Agent (`community_agent/`)
+
+Social learning features with AI-powered bot support.
+
+| Component | Purpose |
+|-----------|---------|
+| `service.py` | Post/comment CRUD, voting, notifications |
+| `bot.py` | Auto-reply bot using RAG for grounded answers |
+| `schemas.py` | Pydantic models for posts, comments, reactions |
+
+### Notes Agent (`notes_agent/`)
+
+Handwritten notes digitization with vision AI.
+
+| Component | Purpose |
+|-----------|---------|
+| `vision.py` | Gemini Vision for handwriting OCR |
+| `latex_generator.py` | Convert extracted text to LaTeX/Markdown |
+| `agent.py` | Orchestrates vision → LaTeX pipeline |
+
+---
+
 ## Core Services (`services/`)
 
 ### Gemini Service
