@@ -45,4 +45,3 @@
 - Returns: filename, filepath, file_type, relevance_score, matching_sections
 - Hybrid search: Dense (Cohere) + Sparse (BM25)
 - Citations include: slide numbers, page ranges, code line ranges
-

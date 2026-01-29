@@ -31,6 +31,7 @@ langchain[google-genai]
 google-genai
 
 chromadb
+cohere
 pgvector
 
 # Document Processing
@@ -46,6 +47,8 @@ manim              # Mathematical animations
 Pillow             # Image processing for slides
 ffmpeg-python      # Video composition
 pygments           # Code syntax highlighting
+markdown
+xhtml2pdf
 
 # Security (uncomment as needed)
 # python-jose[cryptography]>=3.3.0
