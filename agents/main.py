@@ -36,6 +36,16 @@ except Exception as e:
     logger.error(f"Unexpected error importing notes router: {type(e).__name__}: {e}", exc_info=True)
     notes_router = None
 
+# Import community router
+try:
+    from community_agent.router import router as community_router
+except ImportError as e:
+    logger.warning(f"Could not import community router: {e}")
+    community_router = None
+except Exception as e:
+    logger.error(f"Unexpected error importing community router: {type(e).__name__}: {e}", exc_info=True)
+    community_router = None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -114,6 +124,8 @@ if chat_router:
     app.include_router(chat_router, prefix=settings.API_PREFIX)
 if notes_router:
     app.include_router(notes_router, prefix=settings.API_PREFIX)
+if community_router:
+    app.include_router(community_router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")
