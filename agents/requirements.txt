@@ -40,6 +40,13 @@ pymupdf
 tiktoken
 cohere
 
+# Video Generation
+edge-tts           # Text-to-speech
+manim              # Mathematical animations
+Pillow             # Image processing for slides
+ffmpeg-python      # Video composition
+pygments           # Code syntax highlighting
+
 # Security (uncomment as needed)
 # python-jose[cryptography]>=3.3.0
 # passlib[bcrypt]>=1.7.4
