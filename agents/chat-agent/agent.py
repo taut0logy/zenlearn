@@ -24,6 +24,7 @@ from utils.logger import logger
 from .tools.wikipedia_mcp import wikipedia_tool
 from .tools.duckduckgo_search import duckduckgo_search_tool
 from .tools.course_materials_search import course_materials_search_tool
+from .tools.content_gen import content_gen_tool
 from .context import ChatContext
 
 
@@ -59,6 +60,7 @@ class ChatAgent:
         # Define tools - ORDER MATTERS: course materials first (primary source)
         self.tools: list[BaseTool] = [
             course_materials_search_tool,  # PRIMARY: Search course content first
+            content_gen_tool,  # SPECIALIZED: Generate learning content/labs
             wikipedia_tool,  # SECONDARY: Encyclopedia knowledge
             duckduckgo_search_tool,  # TERTIARY: Web search fallback
         ]

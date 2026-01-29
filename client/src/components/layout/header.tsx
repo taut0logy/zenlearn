@@ -29,14 +29,14 @@ import { useAuth } from "@/hooks/use-auth";
 const getNavItems = (role?: string) => {
     const items = [
         {
-            title: "Dashboard",
+            title: "Da",
             href: "/dashboard",
             icon: Home,
             roles: ["user", "admin"],
         },
         {
-            title: "Chat",
-            href: "/chat",
+            title: "Materials",
+            href: "/materials",
             icon: MessageSquare,
             roles: ["user", "admin"],
         },

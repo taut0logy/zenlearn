@@ -15,6 +15,7 @@ from .course_materials_search import (
     CourseMaterialsSearchTool,
     get_course_materials_tool,
 )
+from .content_gen import content_gen_tool
 
 __all__ = [
     "WikipediaTool",
@@ -24,4 +25,5 @@ __all__ = [
     "course_materials_search_tool",
     "CourseMaterialsSearchTool",
     "get_course_materials_tool",
+    "content_gen_tool",
 ]

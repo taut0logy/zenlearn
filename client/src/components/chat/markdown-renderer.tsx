@@ -35,22 +35,27 @@ function preprocessMarkdown(content: string): string {
         return `<div data-callout="${type}">\n\n${escapedContent}\n\n</div>`;
     });
 
-    // Transform [Source: filename, location | content excerpt] to styled spans
+    // Transform [Source: filename, location | content excerpt] to custom links
+    // Format: [📎 filename](citation://uuid?filename=...&location=...&excerpt=...)
     processed = processed.replace(SOURCE_CITATION_REGEX, (match, filename, location, excerpt) => {
         const trimmedFilename = filename.trim();
-        const trimmedLocation = location?.trim();
-        const trimmedExcerpt = excerpt?.trim();
+        const trimmedLocation = location?.trim() || '';
+        const trimmedExcerpt = excerpt?.trim() || '';
 
+        const params = new URLSearchParams();
+        params.set('filename', trimmedFilename);
+        if (trimmedLocation) params.set('location', trimmedLocation);
+        if (trimmedExcerpt) params.set('excerpt', trimmedExcerpt);
+
+        // Use a dummy host for the URL construction to work reliably
+        const citationUrl = `citation://item?${params.toString()}`;
+
+        // Display text in the link
         const displayText = trimmedLocation
             ? `📎 ${trimmedFilename}, ${trimmedLocation}`
             : `📎 ${trimmedFilename}`;
 
-        // Include data attributes for excerpt and source info
-        const excerptAttr = trimmedExcerpt
-            ? ` data-excerpt="${trimmedExcerpt.replace(/"/g, '&quot;').slice(0, 200)}"`
-            : '';
-
-        return `<span class="source-citation" data-source="${trimmedFilename}" data-location="${trimmedLocation || ''}"${excerptAttr} title="${trimmedExcerpt ? trimmedExcerpt.slice(0, 100) + '...' : `Source: ${trimmedFilename}`}">${displayText}</span>`;
+        return `[${displayText}](${citationUrl})`;
     });
 
     return processed;
@@ -61,13 +66,17 @@ interface MarkdownRendererProps {
     className?: string;
     showCopyButton?: boolean;
     isStreaming?: boolean;
+    baseImageUrl?: string;
+    onViewContent?: (url: string) => void;
 }
 
 export function MarkdownRenderer({
     content,
     className,
     showCopyButton = false,
-    isStreaming = false
+    isStreaming = false,
+    baseImageUrl,
+    onViewContent
 }: MarkdownRendererProps) {
     // Preprocess content for custom syntax
     const processedContent = useMemo(() => {
@@ -144,12 +153,55 @@ export function MarkdownRenderer({
         // Pre tag - just pass through, code handles rendering
         pre: ({ children }) => <>{children}</>,
 
-        // Links - use LinkPreview for external URLs
+        // Links - use LinkPreview for external URLs and handle citations
         a: ({ href, children }) => {
-            const isExternal = href?.startsWith('http');
-            const isWikipedia = href?.includes('wikipedia.org');
+            // Handle citation links
+            if (href?.startsWith('citation://')) {
+                try {
+                    // Extract params
+                    // href format: citation://item?filename=...
+                    // The URL constructor requires a valid base, so we trick it
+                    const urlObj = new URL(href.replace('citation://', 'http://dummy/'));
+                    const p = urlObj.searchParams;
 
-            // Use LinkPreview for Wikipedia and other external links
+                    const filename = p.get('filename') || '';
+                    const location = p.get('location') || undefined;
+                    const excerpt = p.get('excerpt') || undefined;
+
+                    return (
+                        <SourceCitation
+                            filename={filename}
+                            location={location}
+                            contentExcerpt={excerpt}
+                        />
+                    );
+                } catch (e) {
+                    // Fallback if parsing fails
+                    console.error('Failed to parse citation URL', e);
+                    return <span>{children}</span>;
+                }
+            }
+
+            // Handle special content viewer links
+            if (href?.startsWith('view-content://')) {
+                return (
+                    <a
+                        href={href}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            onViewContent?.(href);
+                        }}
+                        className="text-primary font-medium hover:underline cursor-pointer inline-flex items-center gap-1.5"
+                    >
+                        {children}
+                        <ExternalLinkIcon className="h-3 w-3" />
+                    </a>
+                );
+            }
+
+            const isExternal = href?.startsWith('http');
+
+            // Use LinkPreview for external links if not streaming
             if (isExternal && !isStreaming) {
                 return (
                     <LinkPreview
@@ -162,7 +214,6 @@ export function MarkdownRenderer({
                 );
             }
 
-            // Fallback for streaming or non-external links
             return (
                 <a
                     href={href}
@@ -222,14 +273,24 @@ export function MarkdownRenderer({
         hr: () => <hr className="my-6 border-t border-border" />,
 
         // Images
-        img: ({ src, alt }) => (
-            <img
-                src={src}
-                alt={alt || ''}
-                className="max-w-full h-auto rounded-lg my-4"
-                loading="lazy"
-            />
-        ),
+        img: ({ src, alt }) => {
+            // Handle relative paths if baseImageUrl is provided
+            let finalSrc = src;
+            if (baseImageUrl && typeof src === 'string' && !src.startsWith('http') && !src.startsWith('data:')) {
+                // Ensure src doesn't start with ./
+                const cleanSrc = src.startsWith('./') ? src.substring(2) : src;
+                finalSrc = `${baseImageUrl}${cleanSrc}`;
+            }
+
+            return (
+                <img
+                    src={finalSrc}
+                    alt={alt || ''}
+                    className="max-w-full h-auto rounded-lg my-4 border border-border/50 shadow-sm"
+                    loading="lazy"
+                />
+            );
+        },
 
         // Strong and emphasis
         strong: ({ children }) => (
@@ -280,7 +341,7 @@ export function MarkdownRenderer({
 
             return <span {...props}>{children}</span>;
         },
-    }), [isStreaming]);
+    }), [isStreaming, baseImageUrl, onViewContent]);
 
     return (
         <div className={cn('markdown-content relative', className)}>

@@ -27,11 +27,12 @@ import { CopyButton } from './copy-button';
 interface ChatMessageProps {
     message: Message;
     isStreaming?: boolean;
+    onViewContent?: (url: string) => void;
 }
 
-export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
+export function ChatMessage({ message, isStreaming, onViewContent }: ChatMessageProps) {
     const isUser = message.role === 'user';
-    
+
     return (
         <div
             className={cn(
@@ -56,15 +57,15 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
                     </>
                 )}
             </Avatar>
-            
+
             <div className="flex-1 space-y-1 overflow-hidden min-w-0">
                 <div className="flex items-center justify-between">
                     <p className="text-xs font-medium text-muted-foreground">
                         {isUser ? 'You' : 'ZenLearn Assistant'}
                     </p>
                     {!isUser && !isStreaming && (
-                        <CopyButton 
-                            text={message.content} 
+                        <CopyButton
+                            text={message.content}
                             className="opacity-0 group-hover:opacity-100 transition-opacity"
                         />
                     )}
@@ -74,7 +75,11 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
                         <p className="whitespace-pre-wrap break-words">{message.content}</p>
                     ) : (
                         <>
-                            <MarkdownRenderer content={message.content} isStreaming={isStreaming} />
+                            <MarkdownRenderer
+                                content={message.content}
+                                isStreaming={isStreaming}
+                                onViewContent={onViewContent}
+                            />
                             {isStreaming && (
                                 <span className="inline-block w-2 h-4 ml-1 bg-primary animate-pulse rounded-sm" />
                             )}
@@ -92,9 +97,10 @@ export function ChatMessage({ message, isStreaming }: ChatMessageProps) {
 
 interface StreamingMessageProps {
     content: string;
+    onViewContent?: (url: string) => void;
 }
 
-export function StreamingMessage({ content }: StreamingMessageProps) {
+export function StreamingMessage({ content, onViewContent }: StreamingMessageProps) {
     if (!content) {
         return (
             <div className="flex gap-3 p-4 rounded-lg bg-muted/50 mr-8">
@@ -110,7 +116,7 @@ export function StreamingMessage({ content }: StreamingMessageProps) {
             </div>
         );
     }
-    
+
     return (
         <ChatMessage
             message={{
@@ -121,6 +127,7 @@ export function StreamingMessage({ content }: StreamingMessageProps) {
                 created_at: new Date().toISOString(),
             }}
             isStreaming={true}
+            onViewContent={onViewContent}
         />
     );
 }
@@ -133,20 +140,22 @@ interface ChatMessageListProps {
     messages: Message[];
     isStreaming: boolean;
     streamingContent: string;
+    onViewContent?: (url: string) => void;
 }
 
 export function ChatMessageList({
     messages,
     isStreaming,
     streamingContent,
+    onViewContent,
 }: ChatMessageListProps) {
     const bottomRef = useRef<HTMLDivElement>(null);
-    
+
     // Auto-scroll to bottom on new messages
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, streamingContent]);
-    
+
     if (messages.length === 0 && !isStreaming) {
         return (
             <div className="flex-1 flex items-center justify-center p-8">
@@ -162,17 +171,17 @@ export function ChatMessageList({
             </div>
         );
     }
-    
+
     return (
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.map((message) => (
-                <ChatMessage key={message.id} message={message} />
+                <ChatMessage key={message.id} message={message} onViewContent={onViewContent} />
             ))}
-            
+
             {isStreaming && (
-                <StreamingMessage content={streamingContent} />
+                <StreamingMessage content={streamingContent} onViewContent={onViewContent} />
             )}
-            
+
             <div ref={bottomRef} />
         </div>
     );
@@ -195,27 +204,27 @@ export function ChatInput({
 }: ChatInputProps) {
     const [value, setValue] = useState('');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    
+
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
         if (!value.trim() || isStreaming) return;
-        
+
         onSend(value.trim());
         setValue('');
-        
+
         // Reset textarea height
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
         }
     };
-    
+
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSubmit(e);
         }
     };
-    
+
     // Auto-resize textarea
     useEffect(() => {
         const textarea = textareaRef.current;
@@ -224,7 +233,7 @@ export function ChatInput({
             textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
         }
     }, [value]);
-    
+
     return (
         <form
             onSubmit={handleSubmit}
@@ -243,7 +252,7 @@ export function ChatInput({
                         rows={1}
                     />
                 </div>
-                
+
                 <Button
                     type="submit"
                     size="icon"
@@ -257,7 +266,7 @@ export function ChatInput({
                     )}
                 </Button>
             </div>
-            
+
             <p className="text-xs text-center text-muted-foreground mt-2">
                 Press Enter to send, Shift + Enter for new line
             </p>
@@ -326,7 +335,7 @@ export function ChatHeader({ title, onNewChat }: ChatHeaderProps) {
                     </p>
                 </div>
             </div>
-            
+
             {onNewChat && (
                 <Button variant="outline" size="sm" onClick={onNewChat}>
                     <Sparkles className="h-4 w-4 mr-2" />
