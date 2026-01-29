@@ -18,13 +18,15 @@ from langchain_core.tools import BaseTool
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 from langgraph.graph.message import add_messages
+from langchain_core.runnables import Runnable, RunnableConfig
 
 from config.settings import settings
 from utils.logger import logger
+from .tools.course_materials_search import course_materials_search_tool
 from .tools.wikipedia_mcp import wikipedia_tool
 from .tools.duckduckgo_search import duckduckgo_search_tool
-from .tools.course_materials_search import course_materials_search_tool
 from .tools.content_gen import content_gen_tool
+from .tools.validated_code_gen import generate_validated_code
 from .context import ChatContext
 
 
@@ -57,10 +59,11 @@ class ChatAgent:
             convert_system_message_to_human=True,
         )
 
-        # Define tools - ORDER MATTERS: course materials first (primary source)
-        self.tools: list[BaseTool] = [
+        # Initialize tools
+        self.tools = [
             course_materials_search_tool,  # PRIMARY: Search course content first
             content_gen_tool,  # SPECIALIZED: Generate learning content/labs
+            generate_validated_code,  # SPECIALIZED: Generate & Validate Python Code
             wikipedia_tool,  # SECONDARY: Encyclopedia knowledge
             duckduckgo_search_tool,  # TERTIARY: Web search fallback
         ]

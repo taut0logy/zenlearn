@@ -29,6 +29,7 @@ langchain-cohere
 langchain[openai]
 langchain[google-genai]
 google-genai
+google-generativeai
 
 chromadb
 cohere
