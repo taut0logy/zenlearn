@@ -26,6 +26,16 @@ except ImportError as e:
     print(f"Warning: Could not import chat-agent router: {e}")
     chat_router = None
 
+# Import notes router
+try:
+    from api.notes import router as notes_router
+except ImportError as e:
+    logger.error(f"Error importing notes router: {e}", exc_info=True)
+    notes_router = None
+except Exception as e:
+    logger.error(f"Unexpected error importing notes router: {type(e).__name__}: {e}", exc_info=True)
+    notes_router = None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -102,6 +112,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(test_router, prefix=settings.API_PREFIX)
 if chat_router:
     app.include_router(chat_router, prefix=settings.API_PREFIX)
+if notes_router:
+    app.include_router(notes_router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

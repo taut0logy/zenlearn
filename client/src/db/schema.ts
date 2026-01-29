@@ -37,6 +37,18 @@ export const messages = pgTable('messages', {
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+// Notes table - for digitized handwritten notes
+export const notes = pgTable('notes', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    originalImageUrl: text('original_image_url'),
+    extractedText: text('extracted_text').notNull(),
+    latexContent: text('latex_content').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // Export types
 export type Profile = typeof profiles.$inferSelect;
 export type NewProfile = typeof profiles.$inferInsert;
@@ -46,3 +58,6 @@ export type NewChat = typeof chats.$inferInsert;
 
 export type Message = typeof messages.$inferSelect;
 export type NewMessage = typeof messages.$inferInsert;
+
+export type Note = typeof notes.$inferSelect;
+export type NewNote = typeof notes.$inferInsert;
