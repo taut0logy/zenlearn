@@ -1,6 +1,15 @@
 # ZenLearn - AI-Powered Learning Platform
 
-> **BCF Hackathon 2026** - Intelligent course content generation and personalized learning
+---
+## Team ZenBit
+
+### Members
+- Md. Faysal Mahmud
+- Md. Sakibur Rahman
+- Raufun Ahsan
+
+> **BCF Hackathon 2026:** ZenLearn - Intelligent course content generation and personalized learning
+---
 
 ## System Architecture
 
