@@ -14,6 +14,42 @@ from config.limiter import limiter
 from config.settings import settings
 from utils.logger import logger, request_id_ctx
 from api.test import router as test_router
+from cms_agent.router import router as cms_router
+from fastapi.staticfiles import StaticFiles
+import os
+from fastapi.staticfiles import StaticFiles
+import os
+
+# Import chat agent router
+import sys
+sys.path.insert(0, '.')
+try:
+    from importlib import import_module
+    chat_agent_router = import_module('chat-agent.router')
+    chat_router = chat_agent_router.router
+except ImportError as e:
+    print(f"Warning: Could not import chat-agent router: {e}")
+    chat_router = None
+
+# Import notes router
+try:
+    from api.notes import router as notes_router
+except ImportError as e:
+    logger.error(f"Error importing notes router: {e}", exc_info=True)
+    notes_router = None
+except Exception as e:
+    logger.error(f"Unexpected error importing notes router: {type(e).__name__}: {e}", exc_info=True)
+    notes_router = None
+
+# Import community router
+try:
+    from community_agent.router import router as community_router
+except ImportError as e:
+    logger.warning(f"Could not import community router: {e}")
+    community_router = None
+except Exception as e:
+    logger.error(f"Unexpected error importing community router: {type(e).__name__}: {e}", exc_info=True)
+    community_router = None
 
 
 @asynccontextmanager
@@ -89,6 +125,18 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # Include routers with prefix
 app.include_router(test_router, prefix=settings.API_PREFIX)
+
+app.include_router(chat_router, prefix=settings.API_PREFIX)
+app.include_router(cms_router, prefix=settings.API_PREFIX)
+
+# Mount contents directory
+content_dir = os.path.join(settings.BASE_DIR, "contents")
+os.makedirs(content_dir, exist_ok=True)
+app.mount("/contents", StaticFiles(directory=content_dir), name="contents")
+if notes_router:
+    app.include_router(notes_router, prefix=settings.API_PREFIX)
+if community_router:
+    app.include_router(community_router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

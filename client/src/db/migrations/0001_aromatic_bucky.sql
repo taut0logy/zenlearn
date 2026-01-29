@@ -1,0 +1,1 @@
+ALTER TABLE "course_materials" ALTER COLUMN "metadata" SET DATA TYPE jsonb USING metadata::jsonb;

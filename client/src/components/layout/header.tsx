@@ -20,6 +20,8 @@ import {
     Settings,
     User,
     Video,
+    FileText,
+    Users,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
@@ -29,15 +31,27 @@ import { useAuth } from "@/hooks/use-auth";
 const getNavItems = (role?: string) => {
     const items = [
         {
-            title: "Dashboard",
+            title: "Da",
             href: "/dashboard",
             icon: Home,
             roles: ["user", "admin"],
         },
         {
-            title: "Messages",
-            href: "/messages",
+            title: "Materials",
+            href: "/materials",
             icon: MessageSquare,
+            roles: ["user", "admin"],
+        },
+        {
+            title: "Notes",
+            href: "/notes",
+            icon: FileText,
+            roles: ["user", "admin"],
+        },
+        {
+            title: "Community",
+            href: "/community",
+            icon: Users,
             roles: ["user", "admin"],
         },
     ];
@@ -95,7 +109,7 @@ export function Header() {
                     href="/"
                     className="flex items-center space-x-2 font-bold text-xl"
                 >
-                    <span className="hidden sm:inline-block">My App</span>
+                    <span className="hidden sm:inline-block">ZenLearn</span>
                 </Link>
 
                 <nav className="hidden md:flex items-center space-x-6">
