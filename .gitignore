@@ -12,5 +12,6 @@ env/
 .DS_Store
 Thumbs.db
 
-*.md
 !README.md
+
+learning_docs
