@@ -28,6 +28,7 @@ langchain
 langchain-cohere
 langchain[openai]
 langchain[google-genai]
+google-genai
 
 chromadb
 pgvector
