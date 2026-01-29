@@ -11,23 +11,49 @@ import { CodeBlock, InlineCode } from './code-block';
 import { MermaidDiagram } from './mermaid-diagram';
 import { Callout, Blockquote, CalloutType } from './callout';
 import { CopyButton } from './copy-button';
+import { SourceCitation } from './source-citation';
+import { LinkPreview } from '@/components/ui/link-preview';
 import { cn } from '@/lib/utils';
 import './markdown.css';
 
 // Regex patterns for preprocessing
 const CALLOUT_REGEX = /:::(note|warning|info|tip|danger|success|question)\s*\n([\s\S]*?):::/g;
+// Extended citation format: [Source: filename, location | content excerpt]
+const SOURCE_CITATION_REGEX = /\[Source:\s*([^,\]|]+)(?:,\s*([^|\]]+))?(?:\s*\|\s*([^\]]+))?\]/g;
 
 /**
  * Preprocess markdown to convert custom syntax to HTML
  * that can be parsed by rehype-raw
  */
 function preprocessMarkdown(content: string): string {
+    let processed = content;
+
     // Convert :::type ... ::: callouts to div elements
-    return content.replace(CALLOUT_REGEX, (_, type, innerContent) => {
+    processed = processed.replace(CALLOUT_REGEX, (_, type, innerContent) => {
         // Escape HTML in content but preserve markdown
         const escapedContent = innerContent.trim();
         return `<div data-callout="${type}">\n\n${escapedContent}\n\n</div>`;
     });
+
+    // Transform [Source: filename, location | content excerpt] to styled spans
+    processed = processed.replace(SOURCE_CITATION_REGEX, (match, filename, location, excerpt) => {
+        const trimmedFilename = filename.trim();
+        const trimmedLocation = location?.trim();
+        const trimmedExcerpt = excerpt?.trim();
+
+        const displayText = trimmedLocation
+            ? `📎 ${trimmedFilename}, ${trimmedLocation}`
+            : `📎 ${trimmedFilename}`;
+
+        // Include data attributes for excerpt and source info
+        const excerptAttr = trimmedExcerpt
+            ? ` data-excerpt="${trimmedExcerpt.replace(/"/g, '&quot;').slice(0, 200)}"`
+            : '';
+
+        return `<span class="source-citation" data-source="${trimmedFilename}" data-location="${trimmedLocation || ''}"${excerptAttr} title="${trimmedExcerpt ? trimmedExcerpt.slice(0, 100) + '...' : `Source: ${trimmedFilename}`}">${displayText}</span>`;
+    });
+
+    return processed;
 }
 
 interface MarkdownRendererProps {
@@ -37,8 +63,8 @@ interface MarkdownRendererProps {
     isStreaming?: boolean;
 }
 
-export function MarkdownRenderer({ 
-    content, 
+export function MarkdownRenderer({
+    content,
     className,
     showCopyButton = false,
     isStreaming = false
@@ -84,10 +110,10 @@ export function MarkdownRenderer({
             const match = /language-(\w+)/.exec(codeClassName || '');
             const language = match ? match[1] : undefined;
             const codeString = String(children).replace(/\n$/, '');
-            
+
             // Check if it's a code block (has language) or inline
             const isInline = !codeClassName && !codeString.includes('\n');
-            
+
             if (isInline) {
                 return <InlineCode>{children}</InlineCode>;
             }
@@ -118,9 +144,25 @@ export function MarkdownRenderer({
         // Pre tag - just pass through, code handles rendering
         pre: ({ children }) => <>{children}</>,
 
-        // Links
+        // Links - use LinkPreview for external URLs
         a: ({ href, children }) => {
             const isExternal = href?.startsWith('http');
+            const isWikipedia = href?.includes('wikipedia.org');
+
+            // Use LinkPreview for Wikipedia and other external links
+            if (isExternal && !isStreaming) {
+                return (
+                    <LinkPreview
+                        url={href || ''}
+                        className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors inline-flex items-center gap-1"
+                    >
+                        {children}
+                        <ExternalLinkIcon className="h-3 w-3" />
+                    </LinkPreview>
+                );
+            }
+
+            // Fallback for streaming or non-external links
             return (
                 <a
                     href={href}
@@ -181,9 +223,9 @@ export function MarkdownRenderer({
 
         // Images
         img: ({ src, alt }) => (
-            <img 
-                src={src} 
-                alt={alt || ''} 
+            <img
+                src={src}
+                alt={alt || ''}
                 className="max-w-full h-auto rounded-lg my-4"
                 loading="lazy"
             />
@@ -202,13 +244,41 @@ export function MarkdownRenderer({
 
         // Handle callout divs from preprocessing
         div: ({ node, children, ...props }) => {
-            const calloutType = (node?.properties?.dataCallout as CalloutType) || 
-                               (props as Record<string, unknown>)['data-callout'] as CalloutType;
-            
+            const calloutType = (node?.properties?.dataCallout as CalloutType) ||
+                (props as Record<string, unknown>)['data-callout'] as CalloutType;
+
             if (calloutType) {
                 return <Callout type={calloutType}>{children}</Callout>;
             }
             return <div {...props}>{children}</div>;
+        },
+
+        // Handle source citation spans from preprocessing
+        span: ({ node, children, ...props }) => {
+            const nodeProps = node?.properties || {};
+            const classNameProp = nodeProps.className;
+
+            // className can be a string or array of strings
+            const classNames = Array.isArray(classNameProp)
+                ? classNameProp.join(' ')
+                : (classNameProp as string || '');
+
+            // Check if this is a source citation span
+            if (classNames.includes('source-citation')) {
+                const filename = nodeProps.dataSource as string || '';
+                const location = nodeProps.dataLocation as string || undefined;
+                const excerpt = nodeProps.dataExcerpt as string || undefined;
+
+                return (
+                    <SourceCitation
+                        filename={filename}
+                        location={location}
+                        contentExcerpt={excerpt}
+                    />
+                );
+            }
+
+            return <span {...props}>{children}</span>;
         },
     }), [isStreaming]);
 
@@ -221,7 +291,7 @@ export function MarkdownRenderer({
             >
                 {processedContent}
             </ReactMarkdown>
-            
+
             {showCopyButton && (
                 <div className="absolute top-0 right-0">
                     <CopyButton text={content} variant="text" />

@@ -75,8 +75,6 @@ async function apiRequest<T>(
         const error = await response.json().catch(() => ({ detail: 'Request failed' }));
         throw new Error(error.detail || 'Request failed');
     }
-
-    console.log(response.json());
     
     return response.json();
 }
