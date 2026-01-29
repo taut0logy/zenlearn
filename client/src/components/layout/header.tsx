@@ -34,6 +34,12 @@ const getNavItems = (role?: string) => {
             icon: Home,
             roles: ["user", "admin"],
         },
+        {
+            title: "Chat",
+            href: "/chat",
+            icon: MessageSquare,
+            roles: ["user", "admin"],
+        },
     ];
 
     const adminItems = [

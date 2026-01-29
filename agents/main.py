@@ -17,6 +17,30 @@ from api.test import router as test_router
 from cms_agent.router import router as cms_router
 from fastapi.staticfiles import StaticFiles
 import os
+from fastapi.staticfiles import StaticFiles
+import os
+
+# Import chat agent router
+import sys
+sys.path.insert(0, '.')
+try:
+    from importlib import import_module
+    chat_agent_router = import_module('chat-agent.router')
+    chat_router = chat_agent_router.router
+except ImportError as e:
+    print(f"Warning: Could not import chat-agent router: {e}")
+    chat_router = None
+
+# Import chat agent router
+import sys
+sys.path.insert(0, '.')
+try:
+    from importlib import import_module
+    chat_agent_router = import_module('chat-agent.router')
+    chat_router = chat_agent_router.router
+except ImportError as e:
+    print(f"Warning: Could not import chat-agent router: {e}")
+    chat_router = None
 
 
 @asynccontextmanager
@@ -92,6 +116,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # Include routers with prefix
 app.include_router(test_router, prefix=settings.API_PREFIX)
+
+app.include_router(chat_router, prefix=settings.API_PREFIX)
 app.include_router(cms_router, prefix=settings.API_PREFIX)
 
 # Mount contents directory
