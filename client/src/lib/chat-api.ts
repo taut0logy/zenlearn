@@ -7,8 +7,7 @@
 
 import { createClient } from '@/lib/supabase/client';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const API_PREFIX = '/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 // Types for chat API
 export interface Chat {
@@ -63,7 +62,7 @@ async function apiRequest<T>(
 ): Promise<T> {
     const token = await getAuthToken();
     
-    const response = await fetch(`${API_BASE_URL}${API_PREFIX}${endpoint}`, {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
         headers: {
             'Content-Type': 'application/json',
@@ -76,6 +75,8 @@ async function apiRequest<T>(
         const error = await response.json().catch(() => ({ detail: 'Request failed' }));
         throw new Error(error.detail || 'Request failed');
     }
+
+    console.log(response.json());
     
     return response.json();
 }
@@ -136,7 +137,7 @@ export async function sendMessageStream(
     const token = await getAuthToken();
     
     const response = await fetch(
-        `${API_BASE_URL}${API_PREFIX}/chat/${chatId}/message?stream=true`,
+        `${API_BASE_URL}/chat/${chatId}/message?stream=true`,
         {
             method: 'POST',
             headers: {
