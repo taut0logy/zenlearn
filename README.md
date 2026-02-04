@@ -74,7 +74,7 @@ graph TB
     subgraph Services["Core Services"]
         S1[Gemini 1.5 Pro]
         S2[Embeddings]
-        S3[Vector Store (Chroma)]
+        S3["Vector Store"]
         S4[Image Gen]
     end
     
