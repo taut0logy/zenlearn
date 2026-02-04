@@ -359,7 +359,7 @@ class ChatService:
         self.semantic_search.delete_chat_messages(str(chat_id))
 
         # Delete memories
-        self.memory.clear_chat_memories(str(chat_id))
+        self.memory.clear_chat_memories(str(chat_id), str(user_id))
 
         # Delete chat (messages cascade)
         await self.db.execute(delete(Chat).where(Chat.id == chat_id))

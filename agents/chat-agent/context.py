@@ -266,7 +266,7 @@ Remember: ALWAYS search course materials FIRST before using external sources."""
         return context_messages
 
     def _get_relevant_memories(
-        self, query: str, n_results: int = 3
+        self, query: str, n_results: int = 5
     ) -> List[Dict[str, Any]]:
         """
         Get relevant memories for the current query.
@@ -279,15 +279,15 @@ Remember: ALWAYS search course materials FIRST before using external sources."""
             List of relevant memories
         """
         try:
-            # Get memories from current chat and cross-chat
+            # Mem0 handles retrieval + reranking internally now
+            # We just ask for the top N results (reranked and sorted)
             memories = self.memory.get_memories(
-                user_id=self.user_id, query=query, n_results=n_results
+                user_id=self.user_id,
+                query=query,
+                n_results=n_results,
+                chat_id=self.chat_id,
             )
-
-            # Filter by relevance threshold
-            relevant = [m for m in memories if m.get("relevance", 0) > 0.5]
-
-            return relevant
+            return memories
 
         except Exception as e:
             logger.error(f"Failed to get memories: {e}")
@@ -299,32 +299,25 @@ Remember: ALWAYS search course materials FIRST before using external sources."""
         """
         Extract and store important memories from the conversation turn.
 
-        This is a simple extraction - could be enhanced with LLM-based extraction.
-
-        Args:
-            user_message: The user's message
-            assistant_response: The assistant's response
+        Uses Mem0's intelligent extraction by passing the full turn.
         """
         try:
-            # Store user's question/topic as a memory
-            if len(user_message) > 20:  # Only meaningful messages
-                self.memory.add_memory(
-                    user_id=self.user_id,
-                    chat_id=self.chat_id,
-                    content=f"User asked: {user_message[:500]}",
-                    memory_type="question",
-                )
+            # Pass the full interaction to Mem0
+            # Mem0 prefers a list of messages: [{"role": "user", ...}, {"role": "assistant", ...}]
+            interaction = [
+                {"role": "user", "content": user_message},
+                {"role": "assistant", "content": assistant_response},
+            ]
 
-            # Store key parts of the response
-            if len(assistant_response) > 100:
-                # Take first paragraph or first 500 chars as memory
-                first_para = assistant_response.split("\n\n")[0][:500]
-                self.memory.add_memory(
-                    user_id=self.user_id,
-                    chat_id=self.chat_id,
-                    content=f"Discussed: {first_para}",
-                    memory_type="discussion",
-                )
+            self.memory.add_memory(
+                user_id=self.user_id,
+                chat_id=self.chat_id,
+                content=interaction,  # Pass list, handled in memory.py
+                memory_type="conversation",
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to extract memories: {e}")
 
         except Exception as e:
             logger.error(f"Failed to extract memories: {e}")

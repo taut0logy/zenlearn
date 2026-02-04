@@ -1,343 +1,297 @@
 """
-ChromaDB-based Memory for conversation context.
+Mem0-based Memory for conversation context.
 
-Stores and retrieves conversation memories using ChromaDB with Cohere embeddings.
-Automatically extracts and stores important information from conversations.
+Uses Mem0 with:
+- Vector Store: ChromaDB
+- Embeddings: Cohere (via LangChain)
+- LLM: Gemini 2.5 Flash
+- Reranking: Built-in LLM Reranker with Academic Prompt
 """
 
-import cohere
+import os
 from typing import List, Dict, Any, Optional
-from datetime import datetime
-from uuid import uuid4
+from mem0 import Memory
+from langchain_cohere import CohereEmbeddings
 from config.settings import settings
-from config.chromadb import get_chroma_client
 from utils.logger import logger
 
 
 class ChatMemory:
     """
-    ChromaDB-based memory system for chat conversations.
-    
-    Features:
-    - Automatic memory extraction from conversations
-    - Semantic memory retrieval
-    - Per-chat and cross-chat memory storage
+    Mem0-based memory system for chat conversations.
+    Wraps the Mem0 client with project-specific configuration.
     """
-    
-    COLLECTION_NAME = "chat_memories"
-    
+
     def __init__(self):
-        self.client = get_chroma_client()
-        self.cohere_client = cohere.Client(settings.COHERE_API_KEY)
-        self._collection = None
-    
-    @property
-    def collection(self):
-        """Get or create the memories collection."""
-        if self._collection is None:
-            self._collection = self.client.get_or_create_collection(
-                name=self.COLLECTION_NAME,
-                metadata={"description": "Extracted conversation memories"}
-            )
-        return self._collection
-    
-    def _get_embedding(self, text: str) -> List[float]:
-        """Get embedding for text using Cohere."""
-        response = self.cohere_client.embed(
-            texts=[text],
-            model="embed-english-v3.0",
-            input_type="search_document"
+        # ensure directories exist
+        os.makedirs("data/chroma", exist_ok=True)
+
+        # Set environment variables required by Mem0/LangChain
+        os.environ["COHERE_API_KEY"] = settings.COHERE_API_KEY
+        os.environ["GOOGLE_API_KEY"] = settings.GEMINI_API_KEY
+
+        # Initialize LangChain Embeddings
+        cohere_embeddings = CohereEmbeddings(
+            model="embed-english-v3.0", cohere_api_key=settings.COHERE_API_KEY
         )
-        return response.embeddings[0]
-    
-    def _get_query_embedding(self, text: str) -> List[float]:
-        """Get query embedding for text using Cohere."""
-        response = self.cohere_client.embed(
-            texts=[text],
-            model="embed-english-v3.0",
-            input_type="search_query"
-        )
-        return response.embeddings[0]
-    
+
+        # Custom Reranking Prompt for Academic Context
+        academic_rerank_prompt = """
+        You are an intelligent assistant for a university learning platform. 
+        Rate how relevant this memory is for answering the student's current query.
+
+        Prioritize:
+        1. **Course Specifics**: Facts about usage of specific tools, libraries, or methodologies mentioned in this course.
+        2. **User Learning State**: Notes on what the student already knows, is confused by, or has successfully mastered.
+        3. **Preferences**: Preferred coding languages (e.g., Python vs C++), explanation styles (visual vs theoretical).
+        4. **Recency**: If two memories conflict, favor the one that implies a more recent state of mind.
+
+        Query: {query}
+        Memory: {memory}
+        Score:
+        """
+
+        # Mem0 Configuration
+        config = {
+            "vector_store": {
+                "provider": "chromadb",
+                "config": {
+                    "collection_name": "mem0_chat_memories",
+                    "path": "data/chroma",
+                },
+            },
+            "llm": {
+                "provider": "gemini",
+                "config": {
+                    "model": "gemini-2.5-flash",
+                    "api_key": settings.GEMINI_API_KEY,
+                    "temperature": 0.2,
+                },
+            },
+            "embedder": {
+                "provider": "langchain",
+                "config": {"model": cohere_embeddings},
+            },
+            "reranker": {
+                "provider": "llm_reranker",
+                "config": {
+                    "llm": {
+                        "provider": "gemini",
+                        "config": {
+                            "model": "gemini-2.5-flash",
+                            "api_key": settings.GEMINI_API_KEY,
+                        },
+                    },
+                    "top_k": 5,
+                    "custom_prompt": academic_rerank_prompt,
+                },
+            },
+        }
+
+        try:
+            self.memory = Memory.from_config(config)
+            logger.info("Mem0 initialized successfully with Gemini/Cohere/Chroma.")
+        except Exception as e:
+            logger.error(f"Failed to initialize Mem0: {e}")
+            raise
+
     def add_memory(
         self,
         user_id: str,
         chat_id: str,
-        content: str,
+        content: str,  # Mem0 expects messages list for .add(), or text. We will adapt.
         memory_type: str = "conversation",
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
-        Add a memory entry.
-        
-        Args:
-            user_id: User ID
-            chat_id: Chat session ID
-            content: Memory content
-            memory_type: Type of memory (conversation, fact, preference, etc.)
-            metadata: Additional metadata
-            
-        Returns:
-            Memory ID
+        Add a memory entry via Mem0.
+
+        Note: Mem0 is intelligent and extracts facts. 'content' should ideally be the full interaction,
+        but we will pass what we have.
         """
         try:
-            memory_id = str(uuid4())
-            embedding = self._get_embedding(content)
-            
-            doc_metadata = {
-                "user_id": str(user_id),
+            # Prepare metadata
+            meta = {
                 "chat_id": str(chat_id),
                 "memory_type": memory_type,
-                "created_at": datetime.utcnow().isoformat(),
-                **(metadata or {})
+                **(metadata or {}),
             }
-            
-            self.collection.add(
-                ids=[memory_id],
-                embeddings=[embedding],
-                documents=[content],
-                metadatas=[doc_metadata]
-            )
-            
-            logger.debug(f"Added memory {memory_id} for user {user_id}")
-            return memory_id
-            
+
+            # Mem0 .add() typically takes a list of messages or a string text.
+            # Passing the raw content string allows Mem0 to extract facts from it.
+            # If content is a conversation turn, it's better to format as messages,
+            # but usually this method is called with a specific string to remember.
+            result = self.memory.add(content, user_id=str(user_id), metadata=meta)
+
+            # Mem0 add returns a list of added memory items (facts)
+            if result and isinstance(result, list):
+                logger.debug(f"Mem0 extracted {len(result)} facts for user {user_id}")
+                return result[0].get("id", "unknown") if result else "unknown"
+
+            return "unknown"  # Mem0 doesn't always return a single ID
+
         except Exception as e:
-            logger.error(f"Failed to add memory: {e}")
-            raise
-    
-    def add_memories_batch(
-        self,
-        memories: List[Dict[str, Any]]
-    ) -> List[str]:
-        """
-        Add multiple memories at once.
-        
-        Args:
-            memories: List of memory dicts with user_id, chat_id, content, memory_type
-            
-        Returns:
-            List of memory IDs
-        """
-        if not memories:
-            return []
-            
-        try:
-            contents = [m["content"] for m in memories]
-            
-            # Get embeddings in batch
-            response = self.cohere_client.embed(
-                texts=contents,
-                model="embed-english-v3.0",
-                input_type="search_document"
+            logger.error(f"Failed to add memory via Mem0: {e}")
+            # Non-blocking failure for memory
+            return ""
+
+    def add_memories_batch(self, memories: List[Dict[str, Any]]) -> List[str]:
+        """Add multiple memories (Not optimal in Mem0, wrapping sequential adds)."""
+        ids = []
+        for m in memories:
+            res = self.add_memory(
+                user_id=m["user_id"],
+                chat_id=m["chat_id"],
+                content=m["content"],
+                memory_type=m.get("memory_type", "conversation"),
             )
-            embeddings = response.embeddings
-            
-            ids = [str(uuid4()) for _ in memories]
-            metadatas = [
-                {
-                    "user_id": str(m["user_id"]),
-                    "chat_id": str(m["chat_id"]),
-                    "memory_type": m.get("memory_type", "conversation"),
-                    "created_at": datetime.utcnow().isoformat(),
-                }
-                for m in memories
-            ]
-            
-            self.collection.add(
-                ids=ids,
-                embeddings=embeddings,
-                documents=contents,
-                metadatas=metadatas
-            )
-            
-            logger.info(f"Added {len(memories)} memories in batch")
-            return ids
-            
-        except Exception as e:
-            logger.error(f"Failed to batch add memories: {e}")
-            raise
-    
+            ids.append(res)
+        return ids
+
     def get_memories(
         self,
         user_id: str,
         query: str,
         chat_id: Optional[str] = None,
         memory_type: Optional[str] = None,
-        n_results: int = 5
+        n_results: int = 5,
     ) -> List[Dict[str, Any]]:
         """
-        Retrieve relevant memories for a query.
-        
-        Args:
-            user_id: User ID to filter memories
-            query: Query to search for relevant memories
-            chat_id: Optional chat ID to filter to specific chat
-            memory_type: Optional memory type filter
-            n_results: Number of results to return
-            
-        Returns:
-            List of relevant memories with metadata
+        Retrieve relevant memories for a query using Mem0 search + rerank.
         """
         try:
-            query_embedding = self._get_query_embedding(query)
-            
-            # Build filter
-            where_filter = {"user_id": str(user_id)}
+            # Construct Mem0 filters if supported (Mem0 metadata filtering is limited in basic search)
+            # Basic search: self.memory.search(query, user_id=...)
+            filters = {}
             if chat_id:
-                where_filter["chat_id"] = str(chat_id)
-            if memory_type:
-                where_filter["memory_type"] = memory_type
-            
-            results = self.collection.query(
-                query_embeddings=[query_embedding],
-                where=where_filter,
-                n_results=n_results,
-                include=["documents", "metadatas", "distances"]
+                filters["chat_id"] = str(chat_id)
+
+            # Search with Reranking enabled (configured in __init__)
+            results = self.memory.search(
+                query=query,
+                user_id=str(user_id),
+                limit=n_results,
+                metadata=filters if filters else None,
             )
-            
-            # Format results
+
+            # Format results to match expected interface
+            # Mem0 results: [{'memory': '...', 'score': 0.9, 'metadata': {...}, 'id': ...}]
             formatted = []
-            if results["documents"] and results["documents"][0]:
-                for i, doc in enumerate(results["documents"][0]):
-                    formatted.append({
-                        "id": results["ids"][0][i] if results["ids"] else None,
-                        "content": doc,
-                        "metadata": results["metadatas"][0][i] if results["metadatas"] else {},
-                        "relevance": 1 - results["distances"][0][i] if results["distances"] else None
-                    })
-            
-            logger.debug(f"Retrieved {len(formatted)} memories for query")
+            for res in results:
+                formatted.append(
+                    {
+                        "id": res.get("id"),
+                        "content": res.get("memory"),
+                        "metadata": res.get("metadata", {}),
+                        "relevance": res.get("score"),  # Populated by reranker
+                    }
+                )
+
+            logger.debug(f"Mem0 retrieved {len(formatted)} memories")
             return formatted
-            
+
         except Exception as e:
-            logger.error(f"Failed to get memories: {e}")
+            logger.error(f"Failed to get memories via Mem0: {e}")
             return []
-    
+
     def get_chat_memories(
-        self,
-        chat_id: str,
-        n_results: int = 10
+        self, chat_id: str, user_id: str, n_results: int = 10
     ) -> List[Dict[str, Any]]:
         """
         Get all memories for a specific chat.
-        
-        Args:
-            chat_id: Chat session ID
-            n_results: Maximum number of results
-            
-        Returns:
-            List of memories for the chat
+        Requires user_id to fetch and filter from Mem0.
         """
         try:
-            results = self.collection.get(
-                where={"chat_id": str(chat_id)},
-                limit=n_results,
-                include=["documents", "metadatas"]
-            )
-            
-            formatted = []
-            if results["documents"]:
-                for i, doc in enumerate(results["documents"]):
-                    formatted.append({
-                        "id": results["ids"][i] if results["ids"] else None,
-                        "content": doc,
-                        "metadata": results["metadatas"][i] if results["metadatas"] else {}
-                    })
-            
-            return formatted
-            
+            # Fetch all memories for the user
+            all_memories = self.memory.get_all(user_id=str(user_id))
+
+            # Filter by chat_id in metadata
+            chat_memories = []
+            if all_memories:
+                for mem in all_memories:
+                    metadata = mem.get("metadata", {})
+                    # Mem0 v1 returns dicts. Ensure metadata is a dict.
+                    if metadata and str(metadata.get("chat_id")) == str(chat_id):
+                        chat_memories.append(
+                            {
+                                "id": mem.get("id"),
+                                "content": mem.get("memory"),
+                                "metadata": metadata,
+                                "created_at": mem.get("created_at"),
+                            }
+                        )
+
+            # Mem0 usually returns recent first or standard order.
+            return chat_memories[:n_results]
+
         except Exception as e:
             logger.error(f"Failed to get chat memories: {e}")
             return []
-    
-    def clear_chat_memories(self, chat_id: str) -> int:
+
+    def clear_chat_memories(self, chat_id: str, user_id: str) -> int:
         """
         Clear all memories for a chat.
-        
-        Args:
-            chat_id: Chat session ID
-            
-        Returns:
-            Number of memories deleted
+        Requires user_id to find and delete specific memories.
         """
         try:
-            results = self.collection.get(
-                where={"chat_id": str(chat_id)},
-                include=[]
-            )
-            
-            if results["ids"]:
-                self.collection.delete(ids=results["ids"])
-                logger.info(f"Cleared {len(results['ids'])} memories for chat {chat_id}")
-                return len(results["ids"])
-            
-            return 0
-            
+            # 1. Get all memories for the user
+            all_memories = self.memory.get_all(user_id=str(user_id))
+
+            # 2. Identify memories belonging to this chat
+            to_delete = []
+            if all_memories:
+                for mem in all_memories:
+                    if str(mem.get("metadata", {}).get("chat_id")) == str(chat_id):
+                        to_delete.append(mem.get("id"))
+
+            # 3. Delete them one by one
+            deleted_count = 0
+            for mem_id in to_delete:
+                if mem_id:
+                    self.memory.delete(mem_id)
+                    deleted_count += 1
+
+            if deleted_count > 0:
+                logger.info(f"Cleared {deleted_count} memories for chat {chat_id}")
+
+            return deleted_count
+
         except Exception as e:
             logger.error(f"Failed to clear memories: {e}")
             return 0
-    
+
     def clear_user_memories(self, user_id: str) -> int:
-        """
-        Clear all memories for a user.
-        
-        Args:
-            user_id: User ID
-            
-        Returns:
-            Number of memories deleted
-        """
+        """Clear all memories for a user."""
         try:
-            results = self.collection.get(
-                where={"user_id": str(user_id)},
-                include=[]
-            )
-            
-            if results["ids"]:
-                self.collection.delete(ids=results["ids"])
-                logger.info(f"Cleared {len(results['ids'])} memories for user {user_id}")
-                return len(results["ids"])
-            
+            self.memory.delete_all(user_id=str(user_id))
+            return 1
+        except Exception:
             return 0
-            
-        except Exception as e:
-            logger.error(f"Failed to clear user memories: {e}")
-            return 0
-    
+
     def format_memories_for_context(
-        self,
-        memories: List[Dict[str, Any]],
-        max_length: int = 2000
+        self, memories: List[Dict[str, Any]], max_length: int = 2000
     ) -> str:
         """
         Format memories for inclusion in the agent context.
-        
-        Args:
-            memories: List of memory dicts
-            max_length: Maximum total length
-            
-        Returns:
-            Formatted string for context
         """
         if not memories:
             return ""
-        
-        formatted_parts = ["**Relevant memories:**"]
+
+        formatted_parts = ["**Relevant Key Facts & Memories:**"]
         current_length = len(formatted_parts[0])
-        
+
         for memory in memories:
             content = memory["content"]
-            memory_type = memory.get("metadata", {}).get("memory_type", "memory")
-            
-            entry = f"- [{memory_type}]: {content}"
-            
+            # Mem0 memories are usually concise facts.
+
+            entry = f"- {content}"
+
             if current_length + len(entry) > max_length:
                 break
-                
+
             formatted_parts.append(entry)
             current_length += len(entry)
-        
+
         return "\n".join(formatted_parts)
 
 
