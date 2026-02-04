@@ -4,8 +4,9 @@ Gemini Vision integration for extracting text from handwritten note images.
 
 import base64
 import json
-from typing import Optional, Dict, Any
-import google.generativeai as genai
+from typing import Optional, Dict, Any, List
+from google import genai
+from google.genai import types
 from config.settings import settings
 from utils.logger import logger
 
@@ -107,8 +108,8 @@ Return a JSON object with this exact format:
 IMPORTANT: Return ONLY valid JSON, no markdown code blocks or formatting."""
 
     def __init__(self):
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        self.model = genai.GenerativeModel("gemini-2.0-flash")
+        self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        self.model_name = "gemini-2.0-flash"
 
     async def extract_from_image(
         self, image_base64: str, mime_type: str = "image/png"
@@ -128,16 +129,17 @@ IMPORTANT: Return ONLY valid JSON, no markdown code blocks or formatting."""
             image_data = base64.b64decode(image_base64)
 
             # Create image part for Gemini
-            image_part = {"mime_type": mime_type, "data": image_data}
+            image_part = types.Part.from_bytes(data=image_data, mime_type=mime_type)
 
             # Send to Gemini Vision
             logger.info("Sending image to Gemini Vision for extraction...")
-            response = self.model.generate_content(
-                [self.EXTRACTION_PROMPT, image_part],
-                generation_config={
-                    "temperature": 0.2,
-                    "max_output_tokens": 4096,
-                },
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=[self.EXTRACTION_PROMPT, image_part],
+                config=types.GenerateContentConfig(
+                    temperature=0.2,
+                    max_output_tokens=4096,
+                ),
             )
 
             # Debug: Print raw response
@@ -196,7 +198,9 @@ IMPORTANT: Return ONLY valid JSON, no markdown code blocks or formatting."""
                 mime_type = (
                     mime_types[i] if mime_types and i < len(mime_types) else "image/png"
                 )
-                image_parts.append({"mime_type": mime_type, "data": image_data})
+                image_parts.append(
+                    types.Part.from_bytes(data=image_data, mime_type=mime_type)
+                )
 
             # Create multi-image prompt
             multi_prompt = f"""You are analyzing {len(images)} images of handwritten notes.
@@ -223,13 +227,14 @@ Return a single JSON object with merged/organized content:
             logger.info(f"Processing {len(images)} images together...")
 
             # Send all images with the prompt
-            content = [multi_prompt] + image_parts
-            response = self.model.generate_content(
-                content,
-                generation_config={
-                    "temperature": 0.2,
-                    "max_output_tokens": 8192,  # More tokens for multiple images
-                },
+            contents = [multi_prompt] + image_parts
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    temperature=0.2,
+                    max_output_tokens=8192,  # More tokens for multiple images
+                ),
             )
 
             result = self._parse_response(response.text)

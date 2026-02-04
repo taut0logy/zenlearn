@@ -5,20 +5,17 @@ Implements a conversational agent with tool use capabilities
 using LangGraph for structured agent workflows.
 """
 
-from typing import TypedDict, Annotated, Sequence, Optional, AsyncGenerator, Any
+from typing import TypedDict, Annotated, Sequence, Optional, AsyncGenerator
 from langchain_core.messages import (
     BaseMessage,
     HumanMessage,
     AIMessage,
     SystemMessage,
-    ToolMessage,
 )
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.tools import BaseTool
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 from langgraph.graph.message import add_messages
-from langchain_core.runnables import Runnable, RunnableConfig
 
 from config.settings import settings
 from utils.logger import logger
@@ -27,7 +24,7 @@ from .tools.wikipedia_mcp import wikipedia_tool
 from .tools.duckduckgo_search import duckduckgo_search_tool
 from .tools.content_gen import content_gen_tool
 from .tools.validated_code_gen import generate_validated_code
-from .context import ChatContext
+from google.api_core import exceptions as google_exceptions
 
 
 class AgentState(TypedDict):
@@ -106,9 +103,9 @@ class ChatAgent:
             response = await self.llm_with_tools.ainvoke(messages)
 
             # Debug: Print Gemini response
-            print(f"\n{'=' * 50}")
-            print(f"GEMINI LLM RESPONSE:")
-            print(f"{'=' * 50}")
+            print("\n" + "=" * 50)
+            print("GEMINI LLM RESPONSE:")
+            print("=" * 50)
             print(
                 f"Content: {response.content[:1000] if response.content else 'No content'}"
             )
@@ -213,6 +210,8 @@ class ChatAgent:
                 lc_messages.append(HumanMessage(content=content))
             elif role == "assistant":
                 lc_messages.append(AIMessage(content=content))
+            elif role == "system":
+                lc_messages.append(SystemMessage(content=content))
 
         # Create initial state
         initial_state = AgentState(
@@ -268,6 +267,15 @@ class ChatAgent:
 
             yield {"event": "end", "data": ""}
 
+        except google_exceptions.ResourceExhausted as e:
+            logger.error(f"Quota exceeded: {e}")
+            yield {
+                "event": "error",
+                "data": "QUOTA_EXCEEDED: Your AI model quota has been reached. Please try again later.",
+            }
+        except google_exceptions.GoogleAPICallError as e:
+            logger.error(f"Google API error: {e}")
+            yield {"event": "error", "data": f"API_ERROR: {str(e)}"}
         except Exception as e:
             logger.error(f"Agent streaming error: {e}")
             yield {"event": "error", "data": str(e)}

@@ -40,7 +40,7 @@ export interface ChatListResponse {
 }
 
 export interface StreamEvent {
-    event: 'start' | 'token' | 'tool_call' | 'tool_result' | 'end' | 'error' | 'thinking';
+    event: 'start' | 'token' | 'tool_call' | 'tool_result' | 'end' | 'error' | 'thinking' | 'chat_created';
     data: { content: string };
 }
 
@@ -130,7 +130,8 @@ export async function updateChatTitle(chatId: string, title: string): Promise<Ch
 export async function sendMessageStream(
     chatId: string,
     content: string,
-    onEvent: (event: StreamEvent) => void
+    onEvent: (event: StreamEvent) => void,
+    signal?: AbortSignal
 ): Promise<void> {
     const token = await getAuthToken();
     
@@ -143,6 +144,7 @@ export async function sendMessageStream(
                 ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
             body: JSON.stringify({ content }),
+            signal,
         }
     );
     
@@ -200,5 +202,80 @@ export async function sendMessage(
     return apiRequest(`/chat/${chatId}/message?stream=false`, {
         method: 'POST',
         body: JSON.stringify({ content }),
+    });
+}
+
+/**
+ * Regenerate the last assistant response
+ */
+export async function regenerateResponse(
+    chatId: string,
+    onEvent: (event: StreamEvent) => void,
+    signal?: AbortSignal
+): Promise<void> {
+    const token = await getAuthToken();
+    
+    const response = await fetch(
+        `${API_BASE_URL}/chat/${chatId}/regenerate`,
+        {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            signal,
+        }
+    );
+    
+    if (!response.ok) {
+        throw new Error('Failed to regenerate response');
+    }
+    
+    if (!response.body) {
+        throw new Error('No response body');
+    }
+    
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        
+        let currentEvent = '';
+        for (const line of lines) {
+            if (line.startsWith('event:')) {
+                currentEvent = line.slice(6).trim();
+            } else if (line.startsWith('data:')) {
+                const data = line.slice(5).trim();
+                if (data && currentEvent) {
+                    try {
+                        const parsed = JSON.parse(data);
+                        onEvent({
+                            event: currentEvent as StreamEvent['event'],
+                            data: parsed,
+                        });
+                    } catch { /* ignore */ }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Record user feedback for a message
+ */
+export async function recordFeedback(
+    chatId: string,
+    messageId: string,
+    feedback: 'like' | 'dislike' | 'none'
+): Promise<void> {
+    await apiRequest(`/chat/${chatId}/message/${messageId}/feedback?feedback=${feedback}`, {
+        method: 'POST',
     });
 }

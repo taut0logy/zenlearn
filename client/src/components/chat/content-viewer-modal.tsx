@@ -50,11 +50,15 @@ export function ContentViewerModal({
                 if (contentUrl.startsWith('view-content://')) {
                     filename = contentUrl.replace('view-content://', '');
                     // Construct fetch URL assuming backend runs on port 8000
-                    // In production, this should be dynamic based on API config
                     const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-                    // Go up from /api/v1 to /contents
                     const rootBase = apiBase.replace('/api/v1', '');
-                    fetchUrl = `${rootBase}/contents/generated/${filename}`;
+
+                    // If filename already contains 'generated/', don't add it again
+                    if (filename.startsWith('generated/')) {
+                        fetchUrl = `${rootBase}/contents/${filename}`;
+                    } else {
+                        fetchUrl = `${rootBase}/contents/generated/${filename}`;
+                    }
                 } else {
                     fetchUrl = contentUrl;
                     filename = fetchUrl.split('/').pop() || 'document.md';

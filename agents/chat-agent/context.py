@@ -44,6 +44,7 @@ Your capabilities:
 3. **External Knowledge**: Use Wikipedia/web search only when course materials don't have the answer
 4. **Recall Conversations**: Reference past discussions when relevant
 5. **Explain Concepts**: Break down complex topics with citations
+6. **Long-Term Memory**: You HAVE access to long-term memory. If "Context from previous conversations" is provided, you MUST use it to answer questions about the user's preferences, past topics, or specific facts they've told you (e.g., "I like bananas"). Do NOT say you don't have memory if this context is present.
 
 ## CRITICAL: Search Priority Chain
 
@@ -187,7 +188,7 @@ Remember: ALWAYS search course materials FIRST before using external sources."""
         """Get the system prompt for the agent."""
         return self.SYSTEM_PROMPT
 
-    def build_context(
+    async def build_context(
         self,
         messages: List[Dict[str, Any]],
         current_query: Optional[str] = None,
@@ -212,16 +213,19 @@ Remember: ALWAYS search course materials FIRST before using external sources."""
         )
 
         # Get relevant memories if enabled
+        memory_content = ""
         if include_memories and current_query:
-            memories = self._get_relevant_memories(current_query)
+            memories = await self._get_relevant_memories(current_query)
             if memories:
                 memory_content = self.memory.format_memories_for_context(memories)
-                context_messages.append(
-                    AgentMessage(
-                        role=MessageRole.SYSTEM,
-                        content=f"Context from previous conversations:\n{memory_content}",
-                    )
+
+        if memory_content:
+            context_messages.append(
+                AgentMessage(
+                    role=MessageRole.SYSTEM,
+                    content=f"Context from previous conversations:\n{memory_content}",
                 )
+            )
 
         # Calculate available tokens
         system_tokens = sum(estimate_tokens(m.content) for m in context_messages)
@@ -265,7 +269,7 @@ Remember: ALWAYS search course materials FIRST before using external sources."""
 
         return context_messages
 
-    def _get_relevant_memories(
+    async def _get_relevant_memories(
         self, query: str, n_results: int = 5
     ) -> List[Dict[str, Any]]:
         """
@@ -281,11 +285,11 @@ Remember: ALWAYS search course materials FIRST before using external sources."""
         try:
             # Mem0 handles retrieval + reranking internally now
             # We just ask for the top N results (reranked and sorted)
-            memories = self.memory.get_memories(
+            memories = await self.memory.aget_memories(
                 user_id=self.user_id,
                 query=query,
                 n_results=n_results,
-                chat_id=self.chat_id,
+                # chat_id=self.chat_id,
             )
             return memories
 
@@ -302,6 +306,14 @@ Remember: ALWAYS search course materials FIRST before using external sources."""
         Uses Mem0's intelligent extraction by passing the full turn.
         """
         try:
+            # Heuristic Filter: Skip extraction for short messages
+            # Unless it's very early in the conversation (captured via other means usually, but good to be safe)
+            # We use a simple word count check.
+            # Heuristic Filter: Skip extraction for single-word messages
+            if len(user_message.split()) < 2:
+                logger.debug("Skipping memory extraction for very short message.")
+                return
+
             # Pass the full interaction to Mem0
             # Mem0 prefers a list of messages: [{"role": "user", ...}, {"role": "assistant", ...}]
             interaction = [
@@ -315,9 +327,6 @@ Remember: ALWAYS search course materials FIRST before using external sources."""
                 content=interaction,  # Pass list, handled in memory.py
                 memory_type="conversation",
             )
-
-        except Exception as e:
-            logger.error(f"Failed to extract memories: {e}")
 
         except Exception as e:
             logger.error(f"Failed to extract memories: {e}")

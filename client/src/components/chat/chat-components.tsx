@@ -24,6 +24,8 @@ import {
     MessageSquare,
     GraduationCap,
     Code,
+    ThumbsUp,
+    ThumbsDown,
 } from 'lucide-react';
 import { MarkdownRenderer } from './markdown-renderer';
 import { CopyButton } from './copy-button';
@@ -151,9 +153,10 @@ interface ChatMessageProps {
     message: Message;
     isStreaming?: boolean;
     onViewContent?: (url: string) => void;
+    onFeedback?: (messageId: string, feedback: 'like' | 'dislike' | 'none') => void;
 }
 
-export function ChatMessage({ message, isStreaming, onViewContent }: ChatMessageProps) {
+export function ChatMessage({ message, isStreaming, onViewContent, onFeedback }: ChatMessageProps) {
     const isUser = message.role === 'user';
 
     return (
@@ -187,10 +190,32 @@ export function ChatMessage({ message, isStreaming, onViewContent }: ChatMessage
                         {isUser ? 'You' : 'ZenLearn Assistant'}
                     </p>
                     {!isUser && !isStreaming && (
-                        <CopyButton
-                            text={message.content}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity"
-                        />
+                        <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                                onClick={() => onFeedback?.(message.id, message.metadata?.user_feedback === 'like' ? 'none' : 'like')}
+                                className={cn(
+                                    "p-1 hover:bg-muted rounded transition-colors",
+                                    message.metadata?.user_feedback === 'like' ? "text-emerald-500" : "text-muted-foreground"
+                                )}
+                                title="Like"
+                            >
+                                <ThumbsUp className="h-3 w-3" />
+                            </button>
+                            <button
+                                onClick={() => onFeedback?.(message.id, message.metadata?.user_feedback === 'dislike' ? 'none' : 'dislike')}
+                                className={cn(
+                                    "p-1 hover:bg-muted rounded transition-colors",
+                                    message.metadata?.user_feedback === 'dislike' ? "text-destructive" : "text-muted-foreground"
+                                )}
+                                title="Dislike"
+                            >
+                                <ThumbsDown className="h-3 w-3" />
+                            </button>
+                            <div className="w-px h-3 bg-border mx-1" />
+                            <CopyButton
+                                text={message.content}
+                            />
+                        </div>
                     )}
                 </div>
                 <div className="prose prose-sm dark:prose-invert max-w-none">
@@ -302,6 +327,9 @@ interface ChatMessageListProps {
     isLoading?: boolean;
     onViewContent?: (url: string) => void;
     onSuggestionClick?: (suggestion: string) => void;
+    onFeedback?: (messageId: string, feedback: 'like' | 'dislike' | 'none') => void;
+    onStop?: () => void;
+    onRegenerate?: () => void;
 }
 
 export function ChatMessageList({
@@ -312,13 +340,36 @@ export function ChatMessageList({
     isLoading,
     onViewContent,
     onSuggestionClick,
+    onFeedback,
+    onStop,
+    onRegenerate,
 }: ChatMessageListProps) {
     const bottomRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const [userScrolledUp, setUserScrolledUp] = useState(false);
+    const [lastScrollTop, setLastScrollTop] = useState(0);
+
+    // Detect user manual scroll up
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        const target = e.currentTarget;
+        const isScrollingUp = target.scrollTop < lastScrollTop;
+        const isNearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 100;
+
+        setLastScrollTop(target.scrollTop);
+
+        if (isScrollingUp && !isNearBottom) {
+            setUserScrolledUp(true);
+        } else if (isNearBottom) {
+            setUserScrolledUp(false);
+        }
+    };
 
     // Auto-scroll to bottom on new messages
     useEffect(() => {
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, streamingContent]);
+        if (!userScrolledUp) {
+            bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [messages, streamingContent, userScrolledUp]);
 
     // Show loading skeleton when loading chat
     if (isLoading) {
@@ -332,16 +383,56 @@ export function ChatMessageList({
     }
 
     return (
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            className="flex-1 overflow-y-auto p-4 space-y-4"
+        >
             {messages.map((message) => (
-                <ChatMessage key={message.id} message={message} onViewContent={onViewContent} />
+                <ChatMessage
+                    key={message.id}
+                    message={message}
+                    onViewContent={onViewContent}
+                    onFeedback={onFeedback}
+                />
             ))}
 
             {isStreaming && (
-                <StreamingMessage content={streamingContent} onViewContent={onViewContent} />
+                <StreamingMessage
+                    content={streamingContent}
+                    thinkingLogs={thinkingLogs}
+                    onViewContent={onViewContent}
+                />
             )}
 
-            <div ref={bottomRef} />
+            {/* Floating Controls */}
+            <div className="sticky bottom-0 left-0 right-0 flex justify-center pb-2 pointer-events-none">
+                <div className="flex gap-2 pointer-events-auto">
+                    {isStreaming ? (
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={onStop}
+                            className="h-8 rounded-full border bg-background/80 backdrop-blur shadow-sm hover:bg-background"
+                        >
+                            <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                            Stop Generation
+                        </Button>
+                    ) : messages.length > 0 && messages[messages.length - 1].role === 'assistant' && (
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={onRegenerate}
+                            className="h-8 rounded-full border bg-background/80 backdrop-blur shadow-sm hover:bg-background"
+                        >
+                            <RefreshCw className="h-3 w-3 mr-2" />
+                            Regenerate
+                        </Button>
+                    )}
+                </div>
+            </div>
+
+            <div ref={bottomRef} className="h-1" />
         </div>
     );
 }

@@ -9,6 +9,7 @@ Uses Mem0 with:
 """
 
 import os
+import asyncio
 from typing import List, Dict, Any, Optional
 from mem0 import Memory
 from langchain_cohere import CohereEmbeddings
@@ -36,25 +37,25 @@ class ChatMemory:
         )
 
         # Custom Reranking Prompt for Academic Context
-        academic_rerank_prompt = """
-        You are an intelligent assistant for a university learning platform. 
-        Rate how relevant this memory is for answering the student's current query.
-
-        Prioritize:
-        1. **Course Specifics**: Facts about usage of specific tools, libraries, or methodologies mentioned in this course.
-        2. **User Learning State**: Notes on what the student already knows, is confused by, or has successfully mastered.
-        3. **Preferences**: Preferred coding languages (e.g., Python vs C++), explanation styles (visual vs theoretical).
-        4. **Recency**: If two memories conflict, favor the one that implies a more recent state of mind.
-
-        Query: {query}
-        Memory: {memory}
-        Score:
-        """
+        # mem0_rerank_prompt = """
+        # You are an intelligent assistant for a university learning platform.
+        # Rate how relevant this memory is for answering the student's current query.
+        #
+        # Prioritize:
+        # 1. **Course Specifics**: Facts about usage of specific tools, libraries, or methodologies mentioned in this course.
+        # 2. **User Learning State**: Notes on what the student already knows, is confused by, or has successfully mastered.
+        # 3. **Preferences**: Preferred coding languages (e.g., Python vs C++), explanation styles (visual vs theoretical).
+        # 4. **Recency**: If two memories conflict, favor the one that implies a more recent state of mind.
+        #
+        # Query: {query}
+        # Memory: {memory}
+        # Score:
+        # """
 
         # Mem0 Configuration
         config = {
             "vector_store": {
-                "provider": "chromadb",
+                "provider": "chroma",
                 "config": {
                     "collection_name": "mem0_chat_memories",
                     "path": "data/chroma",
@@ -63,7 +64,7 @@ class ChatMemory:
             "llm": {
                 "provider": "gemini",
                 "config": {
-                    "model": "gemini-2.5-flash",
+                    "model": "gemini-2.5-flash-lite",
                     "api_key": settings.GEMINI_API_KEY,
                     "temperature": 0.2,
                 },
@@ -72,20 +73,16 @@ class ChatMemory:
                 "provider": "langchain",
                 "config": {"model": cohere_embeddings},
             },
-            "reranker": {
-                "provider": "llm_reranker",
-                "config": {
-                    "llm": {
-                        "provider": "gemini",
-                        "config": {
-                            "model": "gemini-2.5-flash",
-                            "api_key": settings.GEMINI_API_KEY,
-                        },
-                    },
-                    "top_k": 5,
-                    "custom_prompt": academic_rerank_prompt,
-                },
-            },
+            # "reranker": {
+            #     "provider": "llm_reranker",
+            #     "config": {
+            #         "provider": "gemini",
+            #         "model": "gemini-2.5-flash-lite",
+            #         "api_key": settings.GEMINI_API_KEY,
+            #         "top_k": 5,
+            #         "custom_prompt": mem0_rerank_prompt,
+            #     },
+            # },
         }
 
         try:
@@ -125,7 +122,9 @@ class ChatMemory:
 
             # Mem0 add returns a list of added memory items (facts)
             if result and isinstance(result, list):
-                logger.debug(f"Mem0 extracted {len(result)} facts for user {user_id}")
+                logger.info(
+                    f"[mem0] Extracted facts: {[r.get('memory') for r in result]}"
+                )
                 return result[0].get("id", "unknown") if result else "unknown"
 
             return "unknown"  # Mem0 doesn't always return a single ID
@@ -167,13 +166,17 @@ class ChatMemory:
                 filters["chat_id"] = str(chat_id)
 
             # Search with Reranking enabled (configured in __init__)
-            results = self.memory.search(
+            logger.info(f"[mem0] Searching for user {user_id} with query: '{query}'")
+            search_response = self.memory.search(
                 query=query,
                 user_id=str(user_id),
                 limit=n_results,
-                metadata=filters if filters else None,
+                filters=filters if filters else None,
             )
 
+            results = search_response.get("results", [])
+
+            # Format results to match expected interface
             # Format results to match expected interface
             # Mem0 results: [{'memory': '...', 'score': 0.9, 'metadata': {...}, 'id': ...}]
             formatted = []
@@ -187,12 +190,18 @@ class ChatMemory:
                     }
                 )
 
-            logger.debug(f"Mem0 retrieved {len(formatted)} memories")
+            logger.info(
+                f"[mem0] retrieved {len(formatted)} memories: {[m['content'] for m in formatted]}"
+            )
             return formatted
 
         except Exception as e:
             logger.error(f"Failed to get memories via Mem0: {e}")
             return []
+
+    async def aget_memories(self, *args, **kwargs) -> List[Dict[str, Any]]:
+        """Async wrapper for get_memories."""
+        return await asyncio.to_thread(self.get_memories, *args, **kwargs)
 
     def get_chat_memories(
         self, chat_id: str, user_id: str, n_results: int = 10

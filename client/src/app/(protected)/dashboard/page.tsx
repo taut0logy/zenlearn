@@ -32,6 +32,9 @@ function ChatContent() {
         thinkingLogs,
         error,
         sendMessage,
+        stopStreaming,
+        regenerateLastResponse,
+        sendFeedback,
         loadChat,
         createNewChat,
         clearError,
@@ -100,6 +103,9 @@ function ChatContent() {
                     isLoading={isLoading}
                     onViewContent={handleViewContent}
                     onSuggestionClick={handleSendMessage}
+                    onFeedback={sendFeedback}
+                    onStop={stopStreaming}
+                    onRegenerate={regenerateLastResponse}
                 />
 
                 {/* Error */}

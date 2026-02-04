@@ -10,6 +10,8 @@ import {
     listChats,
     deleteChat,
     sendMessageStream,
+    regenerateResponse,
+    recordFeedback,
     ChatListResponse,
     updateChatTitle,
 } from '@/lib/chat-api';
@@ -31,6 +33,9 @@ interface UseChatReturn {
     
     // Actions
     sendMessage: (content: string) => Promise<string | undefined>;
+    stopStreaming: () => void;
+    regenerateLastResponse: () => Promise<void>;
+    sendFeedback: (messageId: string, feedback: 'like' | 'dislike' | 'none') => Promise<void>;
     loadChat: (chatId: string) => Promise<void>;
     createNewChat: (title?: string) => Promise<Chat>;
     clearError: () => void;
@@ -47,6 +52,7 @@ export function useChat({ chatId, onError }: UseChatOptions = {}): UseChatReturn
     const [streamingContent, setStreamingContent] = useState('');
     const [thinkingLogs, setThinkingLogs] = useState<string[]>([]);
     const [error, setError] = useState<Error | null>(null);
+    const abortControllerRef = useRef<AbortController | null>(null);
     
     // Load chat on mount or chatId change
     useEffect(() => {
@@ -99,37 +105,13 @@ export function useChat({ chatId, onError }: UseChatOptions = {}): UseChatReturn
         
         setError(null);
         
-        let activeChat: Chat | ChatDetail | null = chat;
-        let isNewChat = false;
-
-        // 1. Create chat if it doesn't exist
-        if (!activeChat) {
-            try {
-                // Generate a title from the first message
-                const title = content.slice(0, 50) + '...';
-                // createChat returns Chat (not ChatDetail)
-                const newChat = await createChat(title);
-                activeChat = newChat;
-                
-                // Initialize with empty messages as it's new
-                // We cast to ChatDetail because we are adding the missing 'messages' property
-                setChat({ ...newChat, messages: [] } as ChatDetail);
-                isNewChat = true;
-            } catch (err) {
-                const error = err instanceof Error ? err : new Error('Failed to create chat');
-                setError(error);
-                onError?.(error);
-                return;
-            }
-        }
-        
-        // Ensure activeChat is present (it should be by now)
-        if (!activeChat) return;
+        let activeChatId = chat?.id || 'new';
+        let isNewChat = !chat;
 
         // Add user message immediately
         const userMessage: Message = {
             id: crypto.randomUUID(),
-            chat_id: activeChat.id,
+            chat_id: activeChatId === 'new' ? '' : activeChatId,
             role: 'user',
             content,
             created_at: new Date().toISOString(),
@@ -144,8 +126,12 @@ export function useChat({ chatId, onError }: UseChatOptions = {}): UseChatReturn
         const assistantMessageId = crypto.randomUUID();
         let fullContent = '';
         
+        // Setup AbortController for stopping
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
         try {
-            await sendMessageStream(activeChat.id, content, (event) => {
+            await sendMessageStream(activeChatId, content, (event) => {
                 if (event.event === 'token' && event.data.content) {
                     fullContent += event.data.content;
                     setStreamingContent(fullContent);
@@ -154,16 +140,34 @@ export function useChat({ chatId, onError }: UseChatOptions = {}): UseChatReturn
                     setStreamingContent((prev) => prev + `\n_${event.data.content}_\n`);
                 } else if (event.event === 'thinking') {
                     setThinkingLogs((prev) => [...prev, event.data.content]);
+                } else if (event.event === 'chat_created') {
+                    // Implicitly created chat - update ID and state
+                    const newId = event.data.content;
+                    activeChatId = newId;
+                    setChat({
+                        id: newId,
+                        title: content.slice(0, 50) + '...',
+                        messages: [],
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        user_id: '', // Placeholder
+                    } as ChatDetail);
                 } else if (event.event === 'error') {
-                   // If error is "Stream error", we might want to catch it
-                   console.error("Stream event error:", event.data);
+                   // Recognize quota errors
+                   if (event.data.content.includes('QUOTA_EXCEEDED')) {
+                       setError(new Error('AI Model quota reached. Please try again later.'));
+                   } else {
+                       console.error("Stream event error:", event.data);
+                   }
                 }
-            });
+            }, controller.signal);
+            
+            abortControllerRef.current = null;
             
             // Add final assistant message
             const assistantMessage: Message = {
                 id: assistantMessageId,
-                chat_id: activeChat.id,
+                chat_id: activeChatId,
                 role: 'assistant',
                 content: fullContent,
                 created_at: new Date().toISOString(),
@@ -171,7 +175,7 @@ export function useChat({ chatId, onError }: UseChatOptions = {}): UseChatReturn
             
             setMessages((prev) => [...prev, assistantMessage]);
 
-            return activeChat.id; // Return ID so component can update URL
+            return activeChatId; // Return ID so component can update URL
             
         } catch (err) {
             const error = err instanceof Error ? err : new Error('Failed to send message');
@@ -183,8 +187,102 @@ export function useChat({ chatId, onError }: UseChatOptions = {}): UseChatReturn
         } finally {
             setIsStreaming(false);
             setStreamingContent('');
+            abortControllerRef.current = null;
         }
     }, [chat, isStreaming, onError]);
+    
+    const stopStreaming = useCallback(() => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+            setIsStreaming(false);
+        }
+    }, []);
+
+    const regenerateLastResponse = useCallback(async () => {
+        if (!chat || isStreaming) return;
+        
+        setError(null);
+        setIsStreaming(true);
+        setStreamingContent('');
+        setThinkingLogs([]);
+        
+        // Remove the last assistant message from local state if it exists
+        setMessages(prev => {
+            const last = prev[prev.length - 1];
+            if (last && last.role === 'assistant') {
+                return prev.slice(0, -1);
+            }
+            return prev;
+        });
+
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+        let fullContent = '';
+        const assistantMessageId = crypto.randomUUID();
+
+        try {
+            await regenerateResponse(chat.id, (event) => {
+                if (event.event === 'token' && event.data.content) {
+                    fullContent += event.data.content;
+                    setStreamingContent(fullContent);
+                } else if (event.event === 'thinking') {
+                    setThinkingLogs((prev) => [...prev, event.data.content]);
+                } else if (event.event === 'error') {
+                    if (event.data.content.includes('QUOTA_EXCEEDED')) {
+                        setError(new Error('AI Model quota reached. Please try again later.'));
+                    }
+                }
+            }, controller.signal);
+
+            const assistantMessage: Message = {
+                id: assistantMessageId,
+                chat_id: chat.id,
+                role: 'assistant',
+                content: fullContent,
+                created_at: new Date().toISOString(),
+            };
+            
+            setMessages((prev) => [...prev, assistantMessage]);
+        } catch (err) {
+            // If it's an abort error, we don't necessarily want to show it as a big failed state
+            if (err instanceof Error && err.name === 'AbortError') {
+                return;
+            }
+            const error = err instanceof Error ? err : new Error('Failed to regenerate response');
+            setError(error);
+            onError?.(error);
+        } finally {
+            setIsStreaming(false);
+            setStreamingContent('');
+            abortControllerRef.current = null;
+        }
+    }, [chat, isStreaming, onError]);
+
+    const sendFeedback = useCallback(async (messageId: string, feedback: 'like' | 'dislike' | 'none') => {
+        if (!chat) return;
+
+        // Optimistic update
+        setMessages(prev => prev.map(m => {
+            if (m.id === messageId) {
+                return {
+                    ...m,
+                    metadata: {
+                        ...m.metadata,
+                        user_feedback: feedback
+                    }
+                };
+            }
+            return m;
+        }));
+
+        try {
+            await recordFeedback(chat.id, messageId, feedback);
+        } catch (err) {
+            console.error('Failed to record feedback:', err);
+            // Revert on failure could be added here
+        }
+    }, [chat]);
     
     const clearError = useCallback(() => {
         setError(null);
@@ -199,6 +297,9 @@ export function useChat({ chatId, onError }: UseChatOptions = {}): UseChatReturn
         thinkingLogs,
         error,
         sendMessage,
+        stopStreaming,
+        regenerateLastResponse,
+        sendFeedback,
         loadChat,
         createNewChat,
         clearError,

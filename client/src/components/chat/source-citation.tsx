@@ -109,9 +109,11 @@ export function SourceCitation({
         if (fileUrl) {
             if (onViewContent) {
                 // Use view-content protocol if callback provided
-                const viewUrl = fileUrl.includes('/contents/')
-                    ? `view-content://${fileUrl.split('/contents/')[1]}`
-                    : fileUrl;
+                const viewUrl = fileUrl.includes('/contents/generated/')
+                    ? `view-content://${fileUrl.split('/contents/generated/')[1]}`
+                    : fileUrl.includes('/contents/')
+                        ? `view-content://${fileUrl.split('/contents/')[1]}`
+                        : fileUrl;
                 onViewContent(viewUrl);
             } else {
                 window.open(fileUrl, '_blank');
