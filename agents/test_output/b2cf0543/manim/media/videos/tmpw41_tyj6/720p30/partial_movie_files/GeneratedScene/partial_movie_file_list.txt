@@ -1,8 +1,0 @@
-# This file is used internally by FFMPEG.
-file 'file:D:/experiments/bfc26/final/zenlearn/agents/test_output/b2cf0543/manim/media/videos/tmpw41_tyj6/720p30/partial_movie_files/GeneratedScene/1987512680_1765994639_223132457.mp4'
-file 'file:D:/experiments/bfc26/final/zenlearn/agents/test_output/b2cf0543/manim/media/videos/tmpw41_tyj6/720p30/partial_movie_files/GeneratedScene/2538612922_1754310298_2937639795.mp4'
-file 'file:D:/experiments/bfc26/final/zenlearn/agents/test_output/b2cf0543/manim/media/videos/tmpw41_tyj6/720p30/partial_movie_files/GeneratedScene/2538612922_2959460324_218275782.mp4'
-file 'file:D:/experiments/bfc26/final/zenlearn/agents/test_output/b2cf0543/manim/media/videos/tmpw41_tyj6/720p30/partial_movie_files/GeneratedScene/2538612922_3201849554_4257839118.mp4'
-file 'file:D:/experiments/bfc26/final/zenlearn/agents/test_output/b2cf0543/manim/media/videos/tmpw41_tyj6/720p30/partial_movie_files/GeneratedScene/2538612922_1188853385_2052093294.mp4'
-file 'file:D:/experiments/bfc26/final/zenlearn/agents/test_output/b2cf0543/manim/media/videos/tmpw41_tyj6/720p30/partial_movie_files/GeneratedScene/2538612922_1850299801_3197120607.mp4'
-file 'file:D:/experiments/bfc26/final/zenlearn/agents/test_output/b2cf0543/manim/media/videos/tmpw41_tyj6/720p30/partial_movie_files/GeneratedScene/2538612922_2704686740_1658944525.mp4'

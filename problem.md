@@ -1,7 +1,3 @@
-Sure — here is the **PDF content as-is (plain text)**: 
-
----
-
 AI-Powered Supplementary Learning
 Platform for University Courses
 

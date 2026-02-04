@@ -112,7 +112,7 @@ export default function LoginForm() {
     };
 
     return (
-        <div className="flex items-center justify-center px-4 py-36 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-center px-4 py-20 sm:px-6 lg:px-8">
             <div className="w-full max-w-md space-y-8">
                 <div className="text-center">
                     <h1 className="text-3xl font-bold">Welcome back</h1>

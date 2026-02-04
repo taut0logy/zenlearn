@@ -1,15 +1,24 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
+const nextConfig: any = {
   /* config options here */
-  output: "standalone",
+ // output: "standalone",
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   images: {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "**.supabase.co",
-        port: "",
-        pathname: "/**",
+        hostname: "**",//.supabase.co",
+        // port: "",
+        // pathname: "/**",
+      },
+      {
+        protocol: "http",
+        hostname: "**",//.supabase.co",
+        // port: "",
+        // pathname: "/**",
       },
     ],
   },

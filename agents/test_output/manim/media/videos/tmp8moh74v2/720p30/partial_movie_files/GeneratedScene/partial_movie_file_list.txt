@@ -1,5 +1,0 @@
-# This file is used internally by FFMPEG.
-file 'file:D:/experiments/bfc26/final/zenlearn/agents/test_output/manim/media/videos/tmp8moh74v2/720p30/partial_movie_files/GeneratedScene/1987512680_2650000892_223132457.mp4'
-file 'file:D:/experiments/bfc26/final/zenlearn/agents/test_output/manim/media/videos/tmp8moh74v2/720p30/partial_movie_files/GeneratedScene/2538612922_1754310298_4066856090.mp4'
-file 'file:D:/experiments/bfc26/final/zenlearn/agents/test_output/manim/media/videos/tmp8moh74v2/720p30/partial_movie_files/GeneratedScene/2538612922_3899000176_2204674048.mp4'
-file 'file:D:/experiments/bfc26/final/zenlearn/agents/test_output/manim/media/videos/tmp8moh74v2/720p30/partial_movie_files/GeneratedScene/2538612922_1754310298_400592035.mp4'

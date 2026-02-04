@@ -14,11 +14,18 @@ export interface ExtractedBlock {
     type: string;
     content: string;
     confidence: number;
+    source_image: number;
 }
 
 export interface DigitizeRequest {
     image_base64: string;
     title?: string;
+}
+
+export interface BatchDigitizeRequest {
+    images: string[];
+    title?: string;
+    merge_related?: boolean;
 }
 
 export interface DigitizeResponse {
@@ -29,6 +36,8 @@ export interface DigitizeResponse {
     blocks: ExtractedBlock[];
     success: boolean;
     error?: string;
+    image_count: number;
+    merged: boolean;
 }
 
 export interface Note {
@@ -81,7 +90,7 @@ async function apiRequest<T>(
 }
 
 /**
- * Digitize a handwritten note image
+ * Digitize a single handwritten note image
  */
 export async function digitizeNote(imageBase64: string, title?: string): Promise<DigitizeResponse> {
     return apiRequest<DigitizeResponse>('/notes/digitize', {
@@ -89,6 +98,31 @@ export async function digitizeNote(imageBase64: string, title?: string): Promise
         body: JSON.stringify({
             image_base64: imageBase64,
             title,
+        }),
+    });
+}
+
+/**
+ * Digitize multiple handwritten note images (up to 10)
+ * 
+ * The AI will determine if images are related and merge content accordingly.
+ */
+export async function digitizeNotes(
+    images: string[],
+    title?: string,
+    mergeRelated: boolean = true
+): Promise<DigitizeResponse> {
+    // If only one image, use single endpoint for efficiency
+    if (images.length === 1) {
+        return digitizeNote(images[0], title);
+    }
+    
+    return apiRequest<DigitizeResponse>('/notes/digitize/batch', {
+        method: 'POST',
+        body: JSON.stringify({
+            images,
+            title,
+            merge_related: mergeRelated,
         }),
     });
 }
@@ -103,3 +137,4 @@ export async function checkNotesHealth(): Promise<{ status: string; service: str
     }
     return response.json();
 }
+

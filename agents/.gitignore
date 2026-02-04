@@ -23,3 +23,5 @@ htmlcov/
 .nox/
 
 contents/
+data/
+test_output/

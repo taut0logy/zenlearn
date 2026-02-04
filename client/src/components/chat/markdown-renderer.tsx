@@ -18,7 +18,7 @@ import './markdown.css';
 
 // Regex patterns for preprocessing
 const CALLOUT_REGEX = /:::(note|warning|info|tip|danger|success|question)\s*\n([\s\S]*?):::/g;
-// Extended citation format: [Source: filename, location | content excerpt]
+// Extended citation format: [Source: filename, location | content excerpt OR url]
 const SOURCE_CITATION_REGEX = /\[Source:\s*([^,\]|]+)(?:,\s*([^|\]]+))?(?:\s*\|\s*([^\]]+))?\]/g;
 
 /**
@@ -35,20 +35,38 @@ function preprocessMarkdown(content: string): string {
         return `<div data-callout="${type}">\n\n${escapedContent}\n\n</div>`;
     });
 
-    // Transform [Source: filename, location | content excerpt] to custom links
-    // Format: [📎 filename](citation://uuid?filename=...&location=...&excerpt=...)
-    processed = processed.replace(SOURCE_CITATION_REGEX, (match, filename, location, excerpt) => {
+    // DEBUG: Log if we find any [Source: ...] patterns
+    const sourceMatches = content.match(SOURCE_CITATION_REGEX);
+    if (sourceMatches) {
+        console.log('[MarkdownRenderer] Found Source citations:', sourceMatches);
+    }
+
+    // Transform [Source: filename, location | content excerpt OR url] to custom links
+    // Use #citation-data: hash to avoid react-markdown stripping the URL
+    processed = processed.replace(SOURCE_CITATION_REGEX, (match, filename, location, thirdPart) => {
+        console.log('[MarkdownRenderer] Processing citation:', { match, filename, location, thirdPart });
+
         const trimmedFilename = filename.trim();
         const trimmedLocation = location?.trim() || '';
-        const trimmedExcerpt = excerpt?.trim() || '';
+        const trimmedThirdPart = thirdPart?.trim() || '';
 
         const params = new URLSearchParams();
         params.set('filename', trimmedFilename);
         if (trimmedLocation) params.set('location', trimmedLocation);
-        if (trimmedExcerpt) params.set('excerpt', trimmedExcerpt);
 
-        // Use a dummy host for the URL construction to work reliably
-        const citationUrl = `citation://item?${params.toString()}`;
+        // Detect if third part is a URL or content excerpt
+        if (trimmedThirdPart) {
+            if (trimmedThirdPart.startsWith('http://') || trimmedThirdPart.startsWith('https://')) {
+                params.set('fileUrl', trimmedThirdPart);
+            } else {
+                params.set('excerpt', trimmedThirdPart);
+            }
+        }
+
+        // Use hash-based URL that react-markdown won't strip
+        // Format: #citation-data:filename=...&location=...
+        const citationUrl = `#citation-data:${params.toString()}`;
+        console.log('[MarkdownRenderer] Generated citation URL:', citationUrl);
 
         // Display text in the link
         const displayText = trimmedLocation
@@ -155,24 +173,31 @@ export function MarkdownRenderer({
 
         // Links - use LinkPreview for external URLs and handle citations
         a: ({ href, children }) => {
-            // Handle citation links
-            if (href?.startsWith('citation://')) {
+            // DEBUG: Log all link hrefs to see what we're receiving
+            console.log('[MarkdownRenderer] Link href:', href);
+
+            // Handle citation links (hash-based to avoid react-markdown stripping)
+            if (href?.startsWith('#citation-data:')) {
                 try {
-                    // Extract params
-                    // href format: citation://item?filename=...
-                    // The URL constructor requires a valid base, so we trick it
-                    const urlObj = new URL(href.replace('citation://', 'http://dummy/'));
-                    const p = urlObj.searchParams;
+                    // Extract params from hash
+                    // href format: #citation-data:filename=...&location=...&excerpt=...&fileUrl=...
+                    const paramsString = href.replace('#citation-data:', '');
+                    const p = new URLSearchParams(paramsString);
 
                     const filename = p.get('filename') || '';
                     const location = p.get('location') || undefined;
                     const excerpt = p.get('excerpt') || undefined;
+                    const fileUrl = p.get('fileUrl') || undefined;
+
+                    console.log('[MarkdownRenderer] Rendering SourceCitation:', { filename, location, excerpt, fileUrl });
 
                     return (
                         <SourceCitation
                             filename={filename}
                             location={location}
                             contentExcerpt={excerpt}
+                            fileUrl={fileUrl}
+                            onViewContent={onViewContent}
                         />
                     );
                 } catch (e) {
@@ -335,6 +360,7 @@ export function MarkdownRenderer({
                         filename={filename}
                         location={location}
                         contentExcerpt={excerpt}
+                        onViewContent={onViewContent}
                     />
                 );
             }

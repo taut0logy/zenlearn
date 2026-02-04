@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FileText, Code, Presentation, Loader2, MapPin } from "lucide-react";
+import { FileText, Code, Presentation, Loader2, MapPin, Search, Sparkles, FileQuestion, ArrowRight } from "lucide-react";
 import {
     Command,
     CommandEmpty,
@@ -27,14 +27,40 @@ interface SearchCommandProps {
     onSelectResult?: (result: SearchResult) => void;
 }
 
-const fileTypeIcons: Record<string, React.ReactNode> = {
-    pdf: <FileText className="h-5 w-5 text-red-500" />,
-    pptx: <Presentation className="h-5 w-5 text-orange-500" />,
-    code: <Code className="h-5 w-5 text-green-500" />,
-    slides: <Presentation className="h-5 w-5 text-orange-500" />,
-    PowerPoint: <Presentation className="h-5 w-5 text-orange-500" />,
-    "PDF Document": <FileText className="h-5 w-5 text-red-500" />,
-    Document: <FileText className="h-5 w-5 text-blue-500" />,
+const fileTypeConfig: Record<string, { icon: React.ReactNode; gradient: string }> = {
+    pdf: {
+        icon: <FileText className="h-5 w-5" />,
+        gradient: "from-red-500 to-rose-600",
+    },
+    pptx: {
+        icon: <Presentation className="h-5 w-5" />,
+        gradient: "from-orange-500 to-amber-600",
+    },
+    code: {
+        icon: <Code className="h-5 w-5" />,
+        gradient: "from-emerald-500 to-teal-600",
+    },
+    slides: {
+        icon: <Presentation className="h-5 w-5" />,
+        gradient: "from-orange-500 to-amber-600",
+    },
+    PowerPoint: {
+        icon: <Presentation className="h-5 w-5" />,
+        gradient: "from-orange-500 to-amber-600",
+    },
+    "PDF Document": {
+        icon: <FileText className="h-5 w-5" />,
+        gradient: "from-red-500 to-rose-600",
+    },
+    Document: {
+        icon: <FileText className="h-5 w-5" />,
+        gradient: "from-blue-500 to-indigo-600",
+    },
+};
+
+const defaultFileConfig = {
+    icon: <FileText className="h-5 w-5" />,
+    gradient: "from-gray-500 to-slate-600",
 };
 
 // Format relevance score as percentage, capped at 100%
@@ -44,10 +70,22 @@ function formatRelevance(score: number): string {
 }
 
 // Get color class based on relevance score
-function getRelevanceColor(score: number): string {
-    if (score >= 0.8) return "text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400";
-    if (score >= 0.5) return "text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400";
-    return "text-orange-600 bg-orange-100 dark:bg-orange-900/30 dark:text-orange-400";
+function getRelevanceStyle(score: number): { bg: string; text: string; border: string } {
+    if (score >= 0.8) return {
+        bg: "bg-emerald-500/10",
+        text: "text-emerald-600 dark:text-emerald-400",
+        border: "border-emerald-500/30",
+    };
+    if (score >= 0.5) return {
+        bg: "bg-amber-500/10",
+        text: "text-amber-600 dark:text-amber-400",
+        border: "border-amber-500/30",
+    };
+    return {
+        bg: "bg-orange-500/10",
+        text: "text-orange-600 dark:text-orange-400",
+        border: "border-orange-500/30",
+    };
 }
 
 export function SearchCommand({ open, onOpenChange, onSelectResult }: SearchCommandProps) {
@@ -112,100 +150,190 @@ export function SearchCommand({ open, onOpenChange, onSelectResult }: SearchComm
                 <DialogTitle>Search Materials</DialogTitle>
                 <DialogDescription>Search for course materials</DialogDescription>
             </DialogHeader>
-            <DialogContent className="overflow-hidden p-0 max-w-2xl w-[90vw]" showCloseButton={false}>
+            <DialogContent
+                className="overflow-hidden p-0 max-w-3xl w-[95vw] bg-background/95 backdrop-blur-xl border-border/50 shadow-2xl"
+                showCloseButton={false}
+            >
                 {/* shouldFilter={false} disables cmdk's client-side filtering since we do server-side search */}
                 <Command shouldFilter={false} className="[&_[cmdk-group-heading]]:text-muted-foreground">
-                    <CommandInput
-                        placeholder="Search course materials with AI..."
-                        value={query}
-                        onValueChange={setQuery}
-                        className="h-14 text-base"
-                    />
-                    <CommandList className="max-h-[500px]">
+                    {/* Search Input */}
+                    <div className="border-b border-border/50">
+                        <CommandInput
+                            placeholder="Search your course materials..."
+                            value={query}
+                            onValueChange={setQuery}
+                            className="h-14 text-base border-0 focus:ring-0 py-4"
+                        />
+                    </div>
+
+                    <CommandList className="max-h-[450px] overflow-y-auto">
+                        {/* Loading State */}
                         {isLoading && (
-                            <div className="flex items-center justify-center py-12">
-                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                <span className="ml-3 text-muted-foreground">Searching...</span>
+                            <div className="flex flex-col items-center justify-center py-16 px-4">
+                                <div className="relative">
+                                    <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
+                                    <div className="relative p-4 rounded-full bg-gradient-to-br from-primary/20 to-emerald-500/20">
+                                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                    </div>
+                                </div>
+                                <p className="mt-4 text-base font-medium text-foreground">Searching with AI...</p>
+                                <p className="text-sm text-muted-foreground mt-1">Finding the most relevant content</p>
                             </div>
                         )}
 
+                        {/* No Results */}
                         {!isLoading && debouncedQuery.length >= 2 && results.length === 0 && (
-                            <CommandEmpty className="py-12">
-                                <div className="text-center">
-                                    <p className="text-lg font-medium">No results found</p>
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                        Try different keywords or upload more materials
+                            <CommandEmpty className="py-16">
+                                <div className="flex flex-col items-center text-center px-4">
+                                    <div className="p-4 rounded-2xl bg-muted/50 mb-4">
+                                        <FileQuestion className="h-10 w-10 text-muted-foreground" />
+                                    </div>
+                                    <p className="text-lg font-semibold">No results found</p>
+                                    <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+                                        Try different keywords or check if you&apos;ve uploaded the materials you&apos;re looking for
                                     </p>
                                 </div>
                             </CommandEmpty>
                         )}
 
+                        {/* Results */}
                         {!isLoading && results.length > 0 && (
-                            <CommandGroup heading={`Found ${results.length} matching files`}>
-                                {results.map((result, index) => (
-                                    <CommandItem
-                                        key={`${result.filepath}-${index}`}
-                                        value={result.filename}
-                                        onSelect={() => handleSelect(result)}
-                                        className="flex flex-col items-start gap-2 p-4 cursor-pointer border-b last:border-b-0 hover:bg-accent/50"
-                                    >
-                                        {/* File header */}
-                                        <div className="flex items-center gap-3 w-full">
-                                            <div className="flex-shrink-0 p-2 rounded-lg bg-muted">
-                                                {fileTypeIcons[result.file_type] || <FileText className="h-5 w-5" />}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-semibold text-base truncate">{result.filename}</p>
-                                                <p className="text-xs text-muted-foreground">{result.file_type}</p>
-                                            </div>
-                                            <span className={cn(
-                                                "px-2 py-1 rounded-full text-xs font-medium flex-shrink-0",
-                                                getRelevanceColor(result.relevance_score)
-                                            )}>
-                                                {formatRelevance(result.relevance_score)} match
-                                            </span>
-                                        </div>
+                            <CommandGroup
+                                heading={
+                                    <div className="flex items-center gap-2 px-2 py-3">
+                                        <Sparkles className="h-4 w-4 text-primary" />
+                                        <span className="text-sm font-medium">
+                                            Found {results.length} matching {results.length === 1 ? 'file' : 'files'}
+                                        </span>
+                                    </div>
+                                }
+                            >
+                                {results.map((result, index) => {
+                                    const config = fileTypeConfig[result.file_type] || defaultFileConfig;
+                                    const relevanceStyle = getRelevanceStyle(result.relevance_score);
 
-                                        {/* Matching sections */}
-                                        {result.matching_sections && result.matching_sections.length > 0 && (
-                                            <div className="w-full pl-12 space-y-2">
-                                                {result.matching_sections.slice(0, 2).map((section, sIdx) => (
-                                                    <div
-                                                        key={sIdx}
-                                                        className="bg-muted/50 rounded-lg p-3 border-l-2 border-primary/50"
-                                                    >
-                                                        <div className="flex items-center gap-1.5 text-xs text-primary font-medium mb-1">
-                                                            <MapPin className="h-3 w-3" />
-                                                            {section.location}
-                                                        </div>
-                                                        <p className="text-sm text-muted-foreground line-clamp-2">
-                                                            {section.content_preview.substring(0, 150)}...
-                                                        </p>
-                                                    </div>
-                                                ))}
-                                                {result.matching_sections.length > 2 && (
-                                                    <p className="text-xs text-muted-foreground">
-                                                        +{result.matching_sections.length - 2} more matching sections
+                                    return (
+                                        <CommandItem
+                                            key={`${result.filepath}-${index}`}
+                                            value={result.filename}
+                                            onSelect={() => handleSelect(result)}
+                                            className="group flex flex-col items-start gap-3 p-4 mx-2 my-1 cursor-pointer rounded-xl border border-transparent hover:border-border/50 hover:bg-accent/50 transition-all duration-200 data-[selected=true]:bg-accent/50 data-[selected=true]:border-border/50"
+                                        >
+                                            {/* File header */}
+                                            <div className="flex items-center gap-3 w-full">
+                                                {/* File icon with gradient */}
+                                                <div className={cn(
+                                                    "flex-shrink-0 p-2.5 rounded-xl bg-gradient-to-br text-white shadow-lg shadow-black/10",
+                                                    config.gradient
+                                                )}>
+                                                    {config.icon}
+                                                </div>
+
+                                                {/* File info */}
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-semibold text-base truncate group-hover:text-primary transition-colors">
+                                                        {result.filename}
                                                     </p>
-                                                )}
+                                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                                        {result.file_type}
+                                                    </p>
+                                                </div>
+
+                                                {/* Relevance badge */}
+                                                <div className={cn(
+                                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border",
+                                                    relevanceStyle.bg,
+                                                    relevanceStyle.text,
+                                                    relevanceStyle.border
+                                                )}>
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                                                    {formatRelevance(result.relevance_score)}
+                                                </div>
+
+                                                {/* Arrow indicator */}
+                                                <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                                             </div>
-                                        )}
-                                    </CommandItem>
-                                ))}
+
+                                            {/* Matching sections */}
+                                            {result.matching_sections && result.matching_sections.length > 0 && (
+                                                <div className="w-full pl-14 space-y-2">
+                                                    {result.matching_sections.slice(0, 2).map((section, sIdx) => (
+                                                        <div
+                                                            key={sIdx}
+                                                            className="relative bg-muted/30 rounded-lg p-3 border-l-2 border-primary/40 hover:border-primary/70 transition-colors"
+                                                        >
+                                                            <div className="flex items-center gap-1.5 text-xs font-medium text-primary mb-1.5">
+                                                                <MapPin className="h-3 w-3" />
+                                                                <span>{section.location}</span>
+                                                            </div>
+                                                            <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                                                                {section.content_preview.substring(0, 150)}...
+                                                            </p>
+                                                        </div>
+                                                    ))}
+                                                    {result.matching_sections.length > 2 && (
+                                                        <p className="text-xs text-muted-foreground pl-1 flex items-center gap-1">
+                                                            <span className="w-1 h-1 rounded-full bg-muted-foreground" />
+                                                            {result.matching_sections.length - 2} more matching sections
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </CommandItem>
+                                    );
+                                })}
                             </CommandGroup>
                         )}
 
+                        {/* Empty State - No Query */}
                         {!isLoading && !debouncedQuery && (
-                            <div className="py-12 text-center">
-                                <p className="text-base font-medium text-muted-foreground">
-                                    Search course materials with AI
-                                </p>
-                                <p className="text-sm text-muted-foreground/70 mt-1">
-                                    Try searching for topics, concepts, or keywords
-                                </p>
+                            <div className="py-12 px-6">
+                                <div className="flex flex-col items-center text-center">
+                                    <div className="relative mb-5">
+                                        <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/20 to-emerald-500/20 blur-xl" />
+                                        <div className="relative p-4 rounded-2xl bg-gradient-to-br from-primary/10 to-emerald-500/10 border border-primary/20">
+                                            <Search className="h-8 w-8 text-primary" />
+                                        </div>
+                                    </div>
+                                    <h3 className="text-lg font-semibold mb-1">Find your materials</h3>
+                                    <p className="text-sm text-muted-foreground max-w-sm">
+                                        Search for any topic, concept, or keyword in your uploaded files.
+                                    </p>
+
+                                    {/* Search suggestions */}
+                                    <div className="mt-5 flex flex-wrap justify-center gap-2">
+                                        {['algorithms', 'data structures', 'recursion', 'functions'].map((suggestion) => (
+                                            <button
+                                                key={suggestion}
+                                                onClick={() => setQuery(suggestion)}
+                                                className="px-3 py-1.5 text-sm rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-border/50 hover:border-border transition-all"
+                                            >
+                                                {suggestion}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </CommandList>
+
+                    {/* Footer */}
+                    <div className="border-t border-border/50 px-4 py-2 flex items-center justify-center text-xs text-muted-foreground bg-muted/30">
+                        <div className="flex items-center gap-4">
+                            <span className="flex items-center gap-1.5">
+                                <kbd className="px-1.5 py-0.5 rounded bg-muted border border-border/50 font-mono">↑↓</kbd>
+                                Navigate
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                                <kbd className="px-1.5 py-0.5 rounded bg-muted border border-border/50 font-mono">↵</kbd>
+                                Open
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                                <kbd className="px-1.5 py-0.5 rounded bg-muted border border-border/50 font-mono">Esc</kbd>
+                                Close
+                            </span>
+                        </div>
+                    </div>
                 </Command>
             </DialogContent>
         </Dialog>

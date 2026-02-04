@@ -101,19 +101,31 @@ class CourseMaterialsSearchTool:
         """
         Format a citation string for the result.
 
+        Includes content preview for frontend modal display.
+
         Args:
             result: Search result
 
         Returns:
-            Citation string like "[Source: Lecture 2.pptx, Slide 5]"
+            Citation string like "[Source: Lecture 2.pptx, Slide 5 | content preview...]"
         """
         filename = result.filename
 
         if result.matching_sections:
-            # Get the most relevant section's location
+            # Get the most relevant section
             section = result.matching_sections[0]
             location = section.get("location", "")
-            if location:
+            content = section.get("content_preview", "")
+
+            # Clean and truncate content for citation
+            if content:
+                # Remove newlines and limit length for inline citation
+                clean_content = " ".join(content.split())[:300]
+                if location:
+                    return f"[Source: {filename}, {location} | {clean_content}]"
+                else:
+                    return f"[Source: {filename} | {clean_content}]"
+            elif location:
                 return f"[Source: {filename}, {location}]"
 
         return f"[Source: {filename}]"
@@ -169,11 +181,9 @@ class CourseMaterialsSearchTool:
         parts.append(
             "Example: `[Source: Lecture 3.pptx, Slide 5 | Binary search divides the sorted array...]`"
         )
-        parts.append(
-            "\nAt the end of your response, add a Sources section with file links:"
-        )
-        parts.append("```")
-        parts.append("---")
+
+        # Add Sources Used section (NO code block - let frontend render as citations)
+        parts.append("\n---")
         parts.append("**📚 Sources Used:**")
 
         from config.settings import settings
@@ -183,18 +193,25 @@ class CourseMaterialsSearchTool:
             filepath = result.filepath.replace("\\", "/")
 
             # Construct URL for served content
-            # Files are served at /contents/ relative to base dir
             if "/contents/" in filepath:
                 relative_path = filepath.split("/contents/")[-1]
-                # Use localhost for development, or configurable URL
-                base_url = f"http://{settings.HOST}:{settings.PORT}"
+                host = settings.HOST if settings.HOST != "0.0.0.0" else "localhost"
+                base_url = f"http://{host}:{settings.PORT}"
                 url = f"{base_url}/contents/{relative_path}"
-                parts.append(f"- [{result.filename}]({url})")
-            else:
-                # Fallback to file path if not in contents dir
-                parts.append(f"- [{result.filename}]({filepath})")
 
-        parts.append("```")
+                # Get the best location from matching sections
+                location = ""
+                if result.matching_sections:
+                    location = result.matching_sections[0].get("location", "")
+
+                # Use citation format so frontend renders as SourceCitation component
+                # Format: [Source: filename, location | url]
+                if location:
+                    parts.append(f"- [Source: {result.filename}, {location} | {url}]")
+                else:
+                    parts.append(f"- [Source: {result.filename} | {url}]")
+            else:
+                parts.append(f"- [Source: {result.filename}]")
 
         return "\n".join(parts)
 

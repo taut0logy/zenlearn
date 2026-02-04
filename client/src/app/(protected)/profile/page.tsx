@@ -36,7 +36,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { updateProfile, deleteProfile } from "@/actions/user";
 import { uploadAvatar, deleteOldAvatar } from "@/actions/storage";
@@ -64,10 +63,10 @@ type DeleteAccountValues = z.infer<typeof deleteAccountSchema>;
 const ProfilePage = ({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<{ tab?: string }>
 }) => {
     const params= use(searchParams);
-    const tab = params?.q || "details";
+    const tab = params?.tab || "details";
     const [activeTab, setActiveTab] = useState(tab);
     const [isUpdating, setIsUpdating] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);

@@ -6,6 +6,7 @@ import { Message } from '@/lib/chat-api';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     Send,
     Bot,
@@ -16,9 +17,131 @@ import {
     AlertCircle,
     Copy,
     Check,
+    BookOpen,
+    Search,
+    FileText,
+    Lightbulb,
+    MessageSquare,
+    GraduationCap,
+    Code,
 } from 'lucide-react';
 import { MarkdownRenderer } from './markdown-renderer';
 import { CopyButton } from './copy-button';
+
+// ====================
+// Message Skeleton (Loading State)
+// ====================
+
+export function ChatMessageSkeleton({ isUser = false }: { isUser?: boolean }) {
+    return (
+        <div
+            className={cn(
+                'flex gap-3 p-4 rounded-lg animate-pulse',
+                isUser ? 'bg-primary/5 ml-8' : 'bg-muted/30 mr-8'
+            )}
+        >
+            <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+            <div className="flex-1 space-y-2">
+                <Skeleton className="h-3 w-24" />
+                <div className="space-y-1.5">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                    {!isUser && <Skeleton className="h-4 w-5/6" />}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export function ChatLoadingSkeleton() {
+    return (
+        <div className="flex-1 overflow-hidden p-4 space-y-4">
+            <ChatMessageSkeleton isUser={true} />
+            <ChatMessageSkeleton isUser={false} />
+            <ChatMessageSkeleton isUser={true} />
+            <ChatMessageSkeleton isUser={false} />
+        </div>
+    );
+}
+
+// ====================
+// Empty State
+// ====================
+
+interface ChatEmptyStateProps {
+    onSuggestionClick?: (suggestion: string) => void;
+}
+
+function ChatEmptyState({ onSuggestionClick }: ChatEmptyStateProps) {
+    const capabilities = [
+        {
+            icon: <Search className="h-5 w-5 text-blue-500" />,
+            title: "Search Knowledge",
+            description: "Find concepts in slides, PDFs & notes.",
+            suggestion: "Search for 'recursion in slides'"
+        },
+        {
+            icon: <BookOpen className="h-5 w-5 text-emerald-500" />,
+            title: "Generate Materials",
+            description: "Create notes, summaries or flashcards.",
+            suggestion: "Generate notes for Week 3"
+        },
+        {
+            icon: <Code className="h-5 w-5 text-orange-500" />,
+            title: "Lab Help",
+            description: "Debug code and explain syntax.",
+            suggestion: "Explain my syntax error"
+        },
+        {
+            icon: <GraduationCap className="h-5 w-5 text-purple-500" />,
+            title: "Explain Concepts",
+            description: "Clear explanations of theories.",
+            suggestion: "Explain TCP vs UDP"
+        }
+    ];
+
+    return (
+        <div className="flex-1 flex flex-col items-center justify-center p-4 animate-in fade-in duration-500 overflow-y-auto">
+            <div className="text-center space-y-2 max-w-lg mb-8">
+                <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/30 flex items-center justify-center mb-4 shadow-md shadow-primary/5">
+                    <Sparkles className="h-8 w-8 text-primary" />
+                </div>
+                <h2 className="text-2xl font-bold tracking-tight">
+                    ZenLearn Assistant
+                </h2>
+                <p className="text-muted-foreground text-base">
+                    Your AI companion for course materials, labs, and exam prep.
+                </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-3xl w-full">
+                {capabilities.map((cap, index) => (
+                    <button
+                        key={index}
+                        onClick={() => onSuggestionClick?.(cap.suggestion)}
+                        className={cn(
+                            "flex items-start gap-3 p-3 rounded-xl border border-border/50",
+                            "bg-card/50 hover:bg-card hover:border-border transition-all duration-200",
+                            "text-left group hover:shadow-sm"
+                        )}
+                    >
+                        <div className="p-2 rounded-lg bg-background shadow-sm border border-border/50 group-hover:scale-105 transition-transform duration-200">
+                            {cap.icon}
+                        </div>
+                        <div className="space-y-0.5">
+                            <h3 className="font-semibold text-sm flex items-center gap-2">
+                                {cap.title}
+                            </h3>
+                            <p className="text-xs text-muted-foreground leading-snug">
+                                {cap.description}
+                            </p>
+                        </div>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
 
 // ====================
 // Message Bubble
@@ -38,8 +161,8 @@ export function ChatMessage({ message, isStreaming, onViewContent }: ChatMessage
             className={cn(
                 'group flex gap-3 p-4 rounded-lg transition-all',
                 isUser
-                    ? 'bg-primary/10 ml-8'
-                    : 'bg-muted/50 mr-8'
+                    ? 'bg-primary/10 ml-0 md:ml-8'
+                    : 'bg-muted/50 mr-0 md:mr-0 lg:mr-8'
             )}
         >
             <Avatar className="h-8 w-8 shrink-0">
@@ -90,10 +213,6 @@ export function ChatMessage({ message, isStreaming, onViewContent }: ChatMessage
         </div>
     );
 }
-
-// ====================
-// Streaming Message
-// ====================
 
 // ====================
 // Streaming Message
@@ -180,7 +299,9 @@ interface ChatMessageListProps {
     isStreaming: boolean;
     streamingContent: string;
     thinkingLogs?: string[];
+    isLoading?: boolean;
     onViewContent?: (url: string) => void;
+    onSuggestionClick?: (suggestion: string) => void;
 }
 
 export function ChatMessageList({
@@ -188,7 +309,9 @@ export function ChatMessageList({
     isStreaming,
     streamingContent,
     thinkingLogs,
+    isLoading,
     onViewContent,
+    onSuggestionClick,
 }: ChatMessageListProps) {
     const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -197,19 +320,14 @@ export function ChatMessageList({
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, streamingContent]);
 
+    // Show loading skeleton when loading chat
+    if (isLoading) {
+        return <ChatLoadingSkeleton />;
+    }
+
     if (messages.length === 0 && !isStreaming) {
         return (
-            <div className="flex-1 flex items-center justify-center p-8">
-                <div className="text-center space-y-4 max-w-md">
-                    <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500/20 to-teal-600/20 flex items-center justify-center">
-                        <Sparkles className="h-8 w-8 text-primary" />
-                    </div>
-                    <h3 className="text-xl font-semibold">Start a Conversation</h3>
-                    <p className="text-muted-foreground">
-                        Ask me anything about your courses, request explanations, or search through your materials.
-                    </p>
-                </div>
-            </div>
+            <ChatEmptyState onSuggestionClick={onSuggestionClick} />
         );
     }
 
@@ -276,42 +394,45 @@ export function ChatInput({
     }, [value]);
 
     return (
-        <form
-            onSubmit={handleSubmit}
-            className="border-t bg-background/80 backdrop-blur-sm p-4"
-        >
-            <div className="flex gap-2 items-end max-w-4xl mx-auto">
-                <div className="flex-1 relative">
+        <div className="p-4 bg-background/80 backdrop-blur-sm border-t">
+            <form
+                onSubmit={handleSubmit}
+                className="max-w-3xl mx-auto relative"
+            >
+                <div className="relative flex items-end gap-2 bg-muted/40 p-2 rounded-2xl border border-transparent focus-within:border-primary/20 focus-within:bg-muted/30 focus-within:shadow-sm transition-all duration-200">
                     <Textarea
                         ref={textareaRef}
                         value={value}
                         onChange={(e) => setValue(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder={placeholder}
-                        disabled={isStreaming}
-                        className="min-h-[48px] max-h-[200px] resize-none pr-12 rounded-xl"
+                        className="min-h-[44px] w-full resize-none border-0 shadow-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-3 py-3 max-h-[200px]"
                         rows={1}
                     />
+                    <Button
+                        type="submit"
+                        size="icon"
+                        className={cn(
+                            "h-9 w-9 shrink-0 rounded-xl mb-1 transition-all",
+                            value.trim()
+                                ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+                                : "bg-muted-foreground/20 text-muted-foreground hover:bg-muted-foreground/30"
+                        )}
+                        disabled={!value.trim() || isStreaming}
+                    >
+                        {isStreaming ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <Send className="h-4 w-4" />
+                        )}
+                    </Button>
                 </div>
 
-                <Button
-                    type="submit"
-                    size="icon"
-                    disabled={!value.trim() || isStreaming}
-                    className="h-12 w-12 rounded-xl shrink-0 bg-gradient-to-r from-primary to-emerald-600 hover:from-primary/90 hover:to-emerald-600/90"
-                >
-                    {isStreaming ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                        <Send className="h-5 w-5" />
-                    )}
-                </Button>
-            </div>
-
-            <p className="text-xs text-center text-muted-foreground mt-2">
-                Press Enter to send, Shift + Enter for new line
-            </p>
-        </form>
+                <p className="text-[10px] text-center text-muted-foreground/60 mt-2 select-none">
+                    ZenLearn may generate inaccurate info, including about people, so double-check its responses.
+                </p>
+            </form>
+        </div>
     );
 }
 
@@ -358,29 +479,34 @@ export function ChatError({ error, onRetry }: ChatErrorProps) {
 interface ChatHeaderProps {
     title?: string;
     onNewChat?: () => void;
+    mobileSidebar?: React.ReactNode;
 }
 
-export function ChatHeader({ title, onNewChat }: ChatHeaderProps) {
+export function ChatHeader({ title, onNewChat, mobileSidebar }: ChatHeaderProps) {
     return (
-        <div className="flex items-center justify-between p-4 border-b bg-background/80 backdrop-blur-sm">
-            <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                    <Bot className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                    <h2 className="font-semibold">
-                        {title || 'ZenLearn Assistant'}
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                        Your AI-powered learning companion
-                    </p>
+        <div className="flex items-center justify-between p-3 border-b bg-background/80 backdrop-blur-sm shrink-0 h-14">
+            <div className="flex items-center gap-3 overflow-hidden">
+                {mobileSidebar}
+
+                <div className="flex items-center gap-3 overflow-hidden">
+                    <div className="hidden md:flex h-9 w-9 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 items-center justify-center shrink-0">
+                        <Bot className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="overflow-hidden">
+                        <h2 className="font-semibold truncate text-sm md:text-base">
+                            {title || 'ZenLearn'}
+                        </h2>
+                        <p className="hidden md:block text-xs text-muted-foreground truncate">
+                            Your AI-powered learning companion
+                        </p>
+                    </div>
                 </div>
             </div>
 
             {onNewChat && (
-                <Button variant="outline" size="sm" onClick={onNewChat}>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    New Chat
+                <Button variant="outline" size="sm" onClick={onNewChat} className="shrink-0 ml-2">
+                    <Sparkles className="h-4 w-4 md:mr-2" />
+                    <span className="hidden md:inline">New Chat</span>
                 </Button>
             )}
         </div>

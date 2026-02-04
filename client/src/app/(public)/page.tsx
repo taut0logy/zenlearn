@@ -38,12 +38,12 @@ export default function Home() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 w-full justify-center pt-4">
-              <Link href="/dashboard">
+              <Link href="/materials">
                 <Button size="lg" className="w-full sm:w-auto text-lg h-12 px-8 gap-2 shadow-lg shadow-primary/25">
-                  Get Started <ArrowRight className="w-5 h-5" />
+                  Explore your Course Materials <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
-              <Link href="/chat">
+              <Link href="/dashboard">
                 <Button variant="outline" size="lg" className="w-full sm:w-auto text-lg h-12 px-8">
                   Try the Assistant
                 </Button>

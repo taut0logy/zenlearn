@@ -11,6 +11,7 @@ import {
     deleteChat,
     sendMessageStream,
     ChatListResponse,
+    updateChatTitle,
 } from '@/lib/chat-api';
 
 interface UseChatOptions {
@@ -29,7 +30,7 @@ interface UseChatReturn {
     error: Error | null;
     
     // Actions
-    sendMessage: (content: string) => Promise<void>;
+    sendMessage: (content: string) => Promise<string | undefined>;
     loadChat: (chatId: string) => Promise<void>;
     createNewChat: (title?: string) => Promise<Chat>;
     clearError: () => void;
@@ -47,12 +48,20 @@ export function useChat({ chatId, onError }: UseChatOptions = {}): UseChatReturn
     const [thinkingLogs, setThinkingLogs] = useState<string[]>([]);
     const [error, setError] = useState<Error | null>(null);
     
-    const abortControllerRef = useRef<AbortController | null>(null);
-    
     // Load chat on mount or chatId change
     useEffect(() => {
         if (chatId) {
-            loadChat(chatId);
+            // Only load if the ID is different from what we currently have
+            // This prevents reloading when we just created the chat and updated the URL
+            if (chat?.id !== chatId) {
+                loadChat(chatId);
+            }
+        } else {
+            // If no chat ID, reset state (New Chat mode)
+            setChat(null);
+            setMessages([]);
+            setThinkingLogs([]);
+            setError(null);
         }
     }, [chatId]);
     
@@ -64,6 +73,7 @@ export function useChat({ chatId, onError }: UseChatOptions = {}): UseChatReturn
         try {
             const chatData = await getChat(id);
             setChat(chatData);
+            // Deduplicate messages just in case, or just set them
             setMessages(chatData.messages);
         } catch (err) {
             const error = err instanceof Error ? err : new Error('Failed to load chat');
@@ -74,35 +84,52 @@ export function useChat({ chatId, onError }: UseChatOptions = {}): UseChatReturn
         }
     }, [onError]);
     
+    // "Create" just prepares the state. Actual creation happens on first message.
     const createNewChat = useCallback(async (title?: string): Promise<Chat> => {
-        setIsLoading(true);
-        setError(null);
+        setChat(null);
+        setMessages([]);
         setThinkingLogs([]);
-        
-        try {
-            const newChat = await createChat(title);
-            setChat({ ...newChat, messages: [] });
-            setMessages([]);
-            return newChat;
-        } catch (err) {
-            const error = err instanceof Error ? err : new Error('Failed to create chat');
-            setError(error);
-            onError?.(error);
-            throw error;
-        } finally {
-            setIsLoading(false);
-        }
-    }, [onError]);
+        setError(null);
+        // Return a placeholder that makes the component clear the ID
+        return { id: '', title: title || 'New Chat' } as Chat;
+    }, []);
     
-    const sendMessage = useCallback(async (content: string) => {
-        if (!chat || isStreaming) return;
+    const sendMessage = useCallback(async (content: string): Promise<string | undefined> => {
+        if (isStreaming) return;
         
         setError(null);
         
+        let activeChat: Chat | ChatDetail | null = chat;
+        let isNewChat = false;
+
+        // 1. Create chat if it doesn't exist
+        if (!activeChat) {
+            try {
+                // Generate a title from the first message
+                const title = content.slice(0, 50) + '...';
+                // createChat returns Chat (not ChatDetail)
+                const newChat = await createChat(title);
+                activeChat = newChat;
+                
+                // Initialize with empty messages as it's new
+                // We cast to ChatDetail because we are adding the missing 'messages' property
+                setChat({ ...newChat, messages: [] } as ChatDetail);
+                isNewChat = true;
+            } catch (err) {
+                const error = err instanceof Error ? err : new Error('Failed to create chat');
+                setError(error);
+                onError?.(error);
+                return;
+            }
+        }
+        
+        // Ensure activeChat is present (it should be by now)
+        if (!activeChat) return;
+
         // Add user message immediately
         const userMessage: Message = {
             id: crypto.randomUUID(),
-            chat_id: chat.id,
+            chat_id: activeChat.id,
             role: 'user',
             content,
             created_at: new Date().toISOString(),
@@ -118,7 +145,7 @@ export function useChat({ chatId, onError }: UseChatOptions = {}): UseChatReturn
         let fullContent = '';
         
         try {
-            await sendMessageStream(chat.id, content, (event) => {
+            await sendMessageStream(activeChat.id, content, (event) => {
                 if (event.event === 'token' && event.data.content) {
                     fullContent += event.data.content;
                     setStreamingContent(fullContent);
@@ -128,20 +155,23 @@ export function useChat({ chatId, onError }: UseChatOptions = {}): UseChatReturn
                 } else if (event.event === 'thinking') {
                     setThinkingLogs((prev) => [...prev, event.data.content]);
                 } else if (event.event === 'error') {
-                    throw new Error(event.data.content || 'Streaming error');
+                   // If error is "Stream error", we might want to catch it
+                   console.error("Stream event error:", event.data);
                 }
             });
             
             // Add final assistant message
             const assistantMessage: Message = {
                 id: assistantMessageId,
-                chat_id: chat.id,
+                chat_id: activeChat.id,
                 role: 'assistant',
                 content: fullContent,
                 created_at: new Date().toISOString(),
             };
             
             setMessages((prev) => [...prev, assistantMessage]);
+
+            return activeChat.id; // Return ID so component can update URL
             
         } catch (err) {
             const error = err instanceof Error ? err : new Error('Failed to send message');
@@ -188,6 +218,7 @@ interface UseChatListReturn {
     loadChats: () => Promise<void>;
     loadMore: () => Promise<void>;
     removeChat: (chatId: string) => Promise<void>;
+    renameChat: (chatId: string, newTitle: string) => Promise<void>;
 }
 
 /**
@@ -242,6 +273,16 @@ export function useChatList({ pageSize = 20 }: UseChatListOptions = {}): UseChat
         }
     }, []);
     
+    const renameChat = useCallback(async (chatId: string, newTitle: string) => {
+        try {
+            const updatedChat = await updateChatTitle(chatId, newTitle);
+            setChats((prev) => prev.map((c) => c.id === chatId ? { ...c, title: updatedChat.title } : c));
+        } catch (err) {
+            setError(err instanceof Error ? err : new Error('Failed to rename chat'));
+            throw err;
+        }
+    }, []);
+    
     // Load chats on mount
     useEffect(() => {
         loadChats();
@@ -256,5 +297,6 @@ export function useChatList({ pageSize = 20 }: UseChatListOptions = {}): UseChat
         loadChats,
         loadMore,
         removeChat,
+        renameChat,
     };
 }

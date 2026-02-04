@@ -9,11 +9,11 @@ import { toast } from "sonner";
 export default function AuthPage({
     searchParams,
 }: {
-    searchParams: Promise<{ q?: string }>
+    searchParams: Promise<{ mode?: string; message?: string; q?: string }>;
 }) {
-    const params= use(searchParams);
-    const mode = params?.q || "login";
-    const message = params?.q;
+    const params = use(searchParams);
+    const mode = params?.mode || "login";
+    const message = params?.message || params?.q;
 
     useEffect(() => {
         if (message) {

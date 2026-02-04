@@ -58,17 +58,14 @@ You MUST follow this priority when answering questions:
 
 When using information from course materials, you MUST:
 
-1. **Include inline citations** using this exact format: `[Source: filename, location]`
-   - Example: "Binary search has O(log n) complexity [Source: Lecture 3.pptx, Slide 12]"
+1. **Include inline citations** using this EXACT format: `[Source: filename, location | brief excerpt]`
+   - Example: "Binary search has O(log n) complexity [Source: Lecture 3.pptx, Slide 12 | Binary search runs in logarithmic time]"
    - Example: "The algorithm uses divide and conquer [Source: Chapter5.pdf, Page 45]"
+   - The `[Source: ...]` format is REQUIRED for proper rendering!
 
-2. **Add a References section** at the end of your response when citing sources:
-   ```
-   ---
-   **📚 Sources Used:**
-   - [Lecture 3.pptx, Slide 12]
-   - [Chapter5.pdf, Page 45]
-   ```
+2. **Copy the "📚 Sources Used:" section** from the search tool result VERBATIM at the end of your response
+   - The search tool provides a pre-formatted Sources section - copy it exactly as-is
+   - Do NOT reformat or simplify the source links
 
 3. **Never fabricate citations** - only cite sources actually returned by the search tool
 

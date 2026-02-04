@@ -13,7 +13,9 @@ import { ChatSidebar, MobileChatSidebar } from '@/components/chat/chat-sidebar';
 
 import { ContentViewerModal } from '@/components/chat/content-viewer-modal';
 
-export default function ChatPage() {
+import { Suspense } from 'react';
+
+function ChatContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const chatId = searchParams.get('id') || undefined;
@@ -38,12 +40,10 @@ export default function ChatPage() {
     const [sidebarOpen, setSidebarOpen] = useState(true);
 
     const handleNewChat = useCallback(async () => {
-        try {
-            const newChat = await createNewChat();
-            router.push(`/dashboard?id=${newChat.id}`);
-        } catch (err) {
-            // Error handled by hook
-        }
+        // Just clear the URL, useChat will handle state reset
+        router.push('/dashboard');
+        // createNewChat() in hook effectively just resets state now
+        await createNewChat();
     }, [createNewChat, router]);
 
     const handleSelectChat = useCallback((id: string) => {
@@ -51,21 +51,12 @@ export default function ChatPage() {
     }, [router]);
 
     const handleSendMessage = useCallback(async (content: string) => {
-        // If no chat exists, create one first
-        if (!chat) {
-            try {
-                const newChat = await createNewChat(content.slice(0, 50) + '...');
-                router.push(`/dashboard?id=${newChat.id}`, { scroll: false });
+        // Send message - if no chat exists, hook will create one and return ID
+        const newChatId = await sendMessage(content);
 
-                // Wait a bit for navigation then send
-                setTimeout(() => {
-                    sendMessage(content);
-                }, 100);
-            } catch (err) {
-                // Error handled by hook
-            }
-        } else {
-            sendMessage(content);
+        // If a new chat was created, update URL without reloading page
+        if (newChatId && !chat) {
+            router.push(`/dashboard?id=${newChatId}`, { scroll: false });
         }
     }, [chat, createNewChat, router, sendMessage]);
 
@@ -74,30 +65,30 @@ export default function ChatPage() {
     }, []);
 
     return (
-        <div className="flex h-[calc(100vh-4rem)] bg-background">
+        <div className="flex h-[calc(100vh-65px)] bg-background">
             {/* Desktop Sidebar */}
             <div className="hidden md:block w-72 border-r border-border shrink-0">
                 <ChatSidebar
                     currentChatId={chatId}
                     onSelectChat={handleSelectChat}
                     onNewChat={handleNewChat}
+                    isStreaming={isStreaming}
                 />
             </div>
 
             {/* Main Chat Area */}
-            <div className="flex-1 flex flex-col min-w-0">
-                {/* Header */}
-                <div className="flex items-center gap-2 md:hidden px-2">
-                    <MobileChatSidebar
-                        currentChatId={chatId}
-                        onSelectChat={handleSelectChat}
-                        onNewChat={handleNewChat}
-                    />
-                </div>
-
+            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 <ChatHeader
                     title={chat?.title}
                     onNewChat={handleNewChat}
+                    mobileSidebar={
+                        <MobileChatSidebar
+                            currentChatId={chatId}
+                            onSelectChat={handleSelectChat}
+                            onNewChat={handleNewChat}
+                            isStreaming={isStreaming}
+                        />
+                    }
                 />
 
                 {/* Messages */}
@@ -106,7 +97,9 @@ export default function ChatPage() {
                     isStreaming={isStreaming}
                     streamingContent={streamingContent}
                     thinkingLogs={thinkingLogs}
+                    isLoading={isLoading}
                     onViewContent={handleViewContent}
+                    onSuggestionClick={handleSendMessage}
                 />
 
                 {/* Error */}
@@ -132,5 +125,13 @@ export default function ChatPage() {
                 />
             </div>
         </div>
+    );
+}
+
+export default function ChatPage() {
+    return (
+        <Suspense fallback={<div className="flex h-[calc(100vh-4rem)] items-center justify-center">Loading...</div>}>
+            <ChatContent />
+        </Suspense>
     );
 }
